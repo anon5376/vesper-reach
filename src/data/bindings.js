@@ -1,0 +1,102 @@
+export const DEFAULT_BINDINGS = {
+  forward: ['KeyW'],
+  back: ['KeyS'],
+  left: ['KeyA'],
+  right: ['KeyD'],
+  jump: ['Space'],
+  sprint: ['ShiftLeft'],
+  crouch: ['ControlLeft'],
+  jetpack: ['KeyF'],
+  interact: ['KeyE'],
+  fire: ['Mouse0'],
+  altFire: ['Mouse2'],
+  scan: ['KeyR'],
+  toolWheel: ['KeyQ'],
+  inventory: ['KeyI', 'Tab'],
+  craft: ['KeyC'],
+  map: ['KeyM'],
+  pause: ['Escape'],
+  build: ['KeyB'],
+  shipEditor: ['KeyV'],
+  tech: ['KeyT'],
+  discoveries: ['KeyJ'],
+  throttleUp: ['Equal'],
+  throttleDown: ['Minus'],
+  thrustForward: ['KeyW'],
+  thrustBack: ['KeyS'],
+  strafeLeft: ['KeyA'],
+  strafeRight: ['KeyD'],
+  strafeUp: ['Space'],
+  strafeDown: ['KeyC'],
+  rollLeft: ['KeyQ'],
+  rollRight: ['KeyE'],
+  boost: ['ShiftLeft'],
+  land: ['KeyL'],
+  launch: ['KeyL'],
+  target: ['KeyY'],
+  quick1: ['Digit1'],
+  quick2: ['Digit2'],
+  quick3: ['Digit3'],
+  quick4: ['Digit4'],
+  quick5: ['Digit5'],
+  uiUp: ['ArrowUp'],
+  uiDown: ['ArrowDown'],
+  uiLeft: ['ArrowLeft'],
+  uiRight: ['ArrowRight'],
+  uiConfirm: ['Enter'],
+  uiBack: ['Backspace'],
+}
+
+export const DEFAULT_SETTINGS = {
+  bindings: structuredClone(DEFAULT_BINDINGS),
+  lookSensitivity: 0.0022,
+  gamepadDeadzone: 0.18,
+  graphics: 'medium',
+  renderDistance: 4,
+  fov: 72,
+  volumes: { master: 0.8, sfx: 0.75, ambient: 0.55, ui: 0.7 },
+  flight: { scheme: 'arcade', assist: true, throttleMode: 'set' },
+}
+
+export const GAMEPAD_BUTTONS = {
+  0: 'jump',
+  1: 'crouch',
+  2: 'interact',
+  3: 'scan',
+  4: 'toolWheel',
+  5: 'fire',
+  6: 'jetpack',
+  7: 'boost',
+  8: 'pause',
+  9: 'map',
+  12: 'uiUp',
+  13: 'uiDown',
+  14: 'uiLeft',
+  15: 'uiRight',
+}
+
+export function labelFor(code) {
+  if (!code) return '—'
+  const named = {
+    Space: 'Space',
+    ShiftLeft: 'Shift',
+    ShiftRight: 'RShift',
+    ControlLeft: 'Ctrl',
+    ControlRight: 'RCtrl',
+    AltLeft: 'Alt',
+    Tab: 'Tab',
+    Enter: 'Enter',
+    Escape: 'Esc',
+    Backspace: 'Bksp',
+    Minus: '-',
+    Equal: '=',
+    Mouse0: 'LMB',
+    Mouse1: 'MMB',
+    Mouse2: 'RMB',
+  }
+  if (named[code]) return named[code]
+  if (code.startsWith('Key')) return code.slice(3)
+  if (code.startsWith('Digit')) return code.slice(5)
+  if (code.startsWith('Arrow')) return code.slice(5)
+  return code
+}
