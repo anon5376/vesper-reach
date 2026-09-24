@@ -3,6 +3,7 @@ import { BIOMES } from '../data/biomes.js'
 import { RNG } from '../rng/rng.js'
 import { generateSystem, layoutSystem } from '../worldgen/galaxy.js'
 import { fillShip, setThrustVisual, shipSignature } from './shipmesh.js'
+import { atmosphereMaterial, cloudTexture, planetTexture } from './look.js'
 
 function nebulaTexture(seed) {
   const rng = new RNG(seed || 1)
@@ -42,10 +43,10 @@ export class SpaceView {
     this.root = new THREE.Group()
     scene.add(this.root)
     this.sky = new THREE.Mesh(
-      new THREE.SphereGeometry(900, 24, 16),
-      new THREE.MeshBasicMaterial({ map: nebulaTexture(0x51a7), side: THREE.BackSide, depthWrite: false }),
+      new THREE.SphereGeometry(900, 32, 20),
+      new THREE.MeshBasicMaterial({ map: nebulaTexture(0x51a7), side: THREE.BackSide, depthWrite: false, fog: false }),
     )
-    this.root.add(this.sky)
+    scene.add(this.sky)
     this.bodies = new THREE.Group()
     this.root.add(this.bodies)
     this.ship = new THREE.Group()
@@ -81,6 +82,7 @@ export class SpaceView {
     const docked = mode === 'STATION'
     const showSpace = mode === 'TITLE' || mode === 'MODE_SELECT' || mode === 'GALAXY_MAP' || (!state ? true : state.location !== 'surface')
     this.root.visible = showSpace && !editing && !docked
+    this.sky.visible = (showSpace && !docked) || editing
     this.editor.visible = editing
     this.station.visible = docked
     this.orbit += dt
@@ -103,6 +105,7 @@ export class SpaceView {
       const theta = this.orbit * 0.25
       camera.position.set(Math.sin(theta) * radius, 3.4, Math.cos(theta) * radius)
       camera.lookAt(0, 0.4, 0)
+      this.sky.position.copy(camera.position)
       return
     }
     if (!this.root.visible) return
@@ -162,15 +165,32 @@ export class SpaceView {
       const biome = BIOMES[planet.biome] || BIOMES.lush
       const group = new THREE.Group()
       const body = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius, 28, 18),
-        new THREE.MeshStandardMaterial({ color: biome.ground, roughness: 0.82, metalness: 0.04, emissive: biome.low, emissiveIntensity: 0.18 }),
+        new THREE.SphereGeometry(planet.radius, 36, 24),
+        new THREE.MeshStandardMaterial({
+          map: planetTexture(biome, Math.round((planet.orbit || 1) * 10)),
+          roughness: 0.78,
+          metalness: 0.05,
+          emissive: biome.low,
+          emissiveIntensity: 0.12,
+        }),
       )
       body.userData.dispose = true
-      const atmos = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius * 1.08, 24, 16),
-        new THREE.MeshBasicMaterial({ color: biome.sky, transparent: true, opacity: 0.28, side: THREE.BackSide, depthWrite: false }),
+      const clouds = new THREE.Mesh(
+        new THREE.SphereGeometry(planet.radius * 1.04, 28, 18),
+        new THREE.MeshStandardMaterial({
+          map: cloudTexture((planet.orbit || 1) * 3),
+          transparent: true,
+          depthWrite: false,
+          roughness: 1,
+          opacity: 0.85,
+        }),
       )
-      group.add(body, atmos)
+      clouds.userData.cloud = true
+      const atmos = new THREE.Mesh(
+        new THREE.SphereGeometry(planet.radius * 1.16, 28, 20),
+        atmosphereMaterial(biome.sky),
+      )
+      group.add(body, clouds, atmos)
       const moons = planet.moons.map((moon) => {
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(moon.radius, 12, 10),
@@ -200,6 +220,8 @@ export class SpaceView {
       if (!planet?.position) return
       entry.group.position.set(planet.position.x, planet.position.y, planet.position.z)
       entry.group.rotation.y = time * 0.05
+      const clouds = entry.group.children.find((child) => child.userData.cloud)
+      if (clouds) clouds.rotation.y = time * 0.02
       entry.moons.forEach((moon, m) => {
         const src = planet.moons[m]
         if (!src?.position || !planet.position) return
@@ -341,9 +363,17 @@ function buildStation() {
   counter.position.set(0, 0.7, -2)
   const lamp = new THREE.PointLight(0xffb703, 8, 18)
   lamp.position.set(0, 3.4, -1)
-  const pane = new THREE.Mesh(new THREE.BoxGeometry(4, 1.6, 0.1), new THREE.MeshBasicMaterial({ color: '#49c2b8' }))
-  pane.position.set(0, 2.6, -5.8)
-  group.add(floor, back, left, right, counter, lamp, pane)
+  const pane = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.8, 0.08), new THREE.MeshBasicMaterial({ color: '#7ee0d6' }))
+  pane.position.set(0, 2.7, -5.82)
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(16, 0.25, 12), new THREE.MeshStandardMaterial({ color: '#1c3338', roughness: 0.8 }))
+  ceiling.position.y = 4.6
+  const rug = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.05, 2.4), new THREE.MeshStandardMaterial({ color: '#e85d4c', roughness: 0.9 }))
+  rug.position.set(0, 0.22, 1.2)
+  const warm = new THREE.PointLight(0xffb703, 6, 14)
+  warm.position.set(-3.2, 3.2, 1)
+  const cool = new THREE.PointLight(0x2ec4b6, 5, 12)
+  cool.position.set(3.4, 3.1, 0.4)
+  group.add(floor, back, left, right, counter, lamp, pane, ceiling, rug, warm, cool)
   const goods = ['#e85d4c', '#2ec4b6', '#ffd166', '#9b5de5']
   goods.forEach((color, index) => {
     const jar = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.25 }))

@@ -59,57 +59,80 @@ function meshFor(part) {
     return mesh
   }
   if (id === 'cockpit-lantern') {
-    add(box(0.92, 0.72, 1.05), paint(color))
-    add(sph(0.34), paint('#f7fbff', { emissive: '#dff6ff', glow: 0.35, opacity: 0.88, rough: 0.15 }), 0, 0.28, -0.12)
+    add(box(0.96, 0.42, 1.15), paint(color))
+    add(box(0.7, 0.22, 0.72), paint('#1b3a3a'), 0, 0.28, -0.08)
+    add(sph(0.36), paint('#e7fff8', { emissive: '#9cf0e4', glow: 0.55, opacity: 0.72, rough: 0.08 }), 0, 0.38, -0.12)
+    add(box(0.08, 0.28, 0.7), paint('#24170f'), -0.28, 0.36, -0.08)
+    add(box(0.08, 0.28, 0.7), paint('#24170f'), 0.28, 0.36, -0.08)
   } else if (id === 'hull-slope' || id === 'hull-wedge') {
-    add(box(0.96, 0.55, 1), paint(color), 0, -0.15, 0)
-    add(box(0.96, 0.28, 0.7), paint(color), 0, 0.18, -0.12)
+    add(box(0.96, 0.42, 1.02), paint(color), 0, -0.18, 0)
+    add(box(0.78, 0.28, 0.62), paint(color), 0, 0.12, -0.16)
+    add(box(0.98, 0.06, 0.18), paint('#f3e6c8'), 0, 0.08, 0.2)
   } else if (id === 'hull-corner') {
-    add(box(0.7, 0.7, 0.7), paint(color), -0.1, 0, -0.1)
+    add(box(0.72, 0.62, 0.72), paint(color), -0.1, -0.05, -0.1)
+    add(box(0.28, 0.16, 0.72), paint('#f3e6c8'), 0.16, 0.22, -0.1)
   } else if (id === 'wing-panel') {
-    add(box(1.5, 0.08, 0.72), paint(color))
+    add(box(1.7, 0.06, 0.85), paint(color), 0, 0, 0.05)
+    add(box(0.55, 0.08, 0.28), paint('#e85d4c'), 0.7, 0.02, -0.22)
+    add(sph(0.08), paint('#fff1c9', { emissive: '#ffe08a', glow: 1.2 }), 0.82, 0.06, 0.28)
   } else if (id === 'thruster-main' || id === 'thruster-maneuver') {
     const scale = id === 'thruster-main' ? 1 : 0.62
-    const body = add(cyl(0.28 * scale, 0.9 * scale), paint('#2b2a33'), 0, 0, 0, Math.PI / 2)
+    const body = add(cyl(0.32 * scale, 0.78 * scale, 10), paint('#2a211c'), 0, 0, 0.05, Math.PI / 2)
     body.userData.thrust = true
-    const flame = add(cyl(0.16 * scale, 0.45), paint('#ffb703', { emissive: '#ff6b3d', glow: 0.4 }), 0, 0, 0.55)
+    add(geo(`ring${scale}`, () => new THREE.TorusGeometry(0.34 * scale, 0.045, 6, 12)), paint('#e85d4c', { emissive: '#ff6b4a', glow: 0.7 }), 0, 0, 0.42)
+    const flame = add(cyl(0.16 * scale, 0.55), paint('#ffb703', { emissive: '#ff6b3d', glow: 0.4 }), 0, 0, 0.72)
     flame.rotation.x = Math.PI / 2
     flame.userData.flame = true
     const spriteMat = new THREE.SpriteMaterial({ map: glowTexture(), color: '#ffb080', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
     const sprite = new THREE.Sprite(spriteMat)
-    sprite.position.z = 0.8
-    sprite.scale.set(1.4 * scale, 1.4 * scale, 1)
+    sprite.position.z = 0.95
+    sprite.scale.set(1.8 * scale, 1.8 * scale, 1)
     sprite.userData.flame = true
     group.add(sprite)
   } else if (id === 'fuel-tank') {
-    add(cyl(0.38, 0.95, 10), paint(color))
+    add(cyl(0.36, 0.92, 12), paint(color))
+    add(cyl(0.4, 0.08, 12), paint('#f3e6c8'), 0, 0.28, 0)
+    add(cyl(0.4, 0.08, 12), paint('#f3e6c8'), 0, -0.28, 0)
   } else if (id === 'cargo-bay') {
-    add(box(0.96, 0.7, 0.96), paint(color))
+    add(box(0.98, 0.62, 0.98), paint(color))
+    add(box(0.55, 0.08, 0.7), paint('#24170f'), 0, 0.32, 0)
   } else if (id === 'shield-generator') {
-    add(box(0.7, 0.7, 0.7), paint(color))
-    add(sph(0.42), paint('#b9f3ff', { emissive: '#7ad7ff', glow: 0.45, opacity: 0.45 }))
+    add(box(0.62, 0.5, 0.62), paint(color))
+    add(sph(0.48), paint('#d9f6ff', { emissive: '#7ad7ff', glow: 0.65, opacity: 0.38, rough: 0.1 }))
   } else if (id === 'power-core') {
-    add(box(0.72, 0.72, 0.72), paint('#3a342c'))
-    add(sph(0.26), paint('#ffd166', { emissive: '#ffb703', glow: 0.9 }))
+    add(box(0.7, 0.7, 0.7), paint('#3a2a22'))
+    add(box(0.74, 0.08, 0.74), paint('#f3e6c8'), 0, 0.32, 0)
+    add(sph(0.28), paint('#ffe08a', { emissive: '#ffb703', glow: 1.3 }))
   } else if (id === 'laser-mount') {
-    add(box(0.34, 0.22, 0.7), paint(color), 0, 0.2, -0.1)
+    add(box(0.28, 0.16, 0.85), paint(color), 0, 0.22, -0.15)
+    add(sph(0.1), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1.1 }), 0, 0.22, -0.55)
   } else if (id === 'cannon-mount') {
-    add(cyl(0.14, 0.9), paint(color), 0, 0.2, 0, Math.PI / 2)
+    add(cyl(0.16, 0.95, 8), paint(color), 0, 0.22, 0, Math.PI / 2)
+    add(cyl(0.22, 0.12, 8), paint('#24170f'), 0, 0.22, -0.4, Math.PI / 2)
   } else if (id === 'missile-rack') {
-    add(box(0.7, 0.28, 0.7), paint(color))
+    add(box(0.78, 0.16, 0.55), paint(color))
+    add(cyl(0.08, 0.7, 6), paint('#e85d4c'), -0.2, 0.16, 0, Math.PI / 2)
+    add(cyl(0.08, 0.7, 6), paint('#e85d4c'), 0.2, 0.16, 0, Math.PI / 2)
   } else if (id === 'landing-gear') {
-    add(box(0.16, 0.7, 0.16), paint(color), 0, -0.2, 0)
+    add(box(0.1, 0.72, 0.1), paint(color), -0.22, -0.28, 0)
+    add(box(0.1, 0.72, 0.1), paint(color), 0.22, -0.28, 0)
+    add(box(0.7, 0.08, 0.16), paint('#24170f'), 0, -0.62, 0)
   } else if (id === 'running-light') {
-    add(sph(0.16), paint('#fff1c9', { emissive: '#ffe08a', glow: 1.1 }))
+    add(sph(0.14), paint('#fff6d8', { emissive: '#ffe08a', glow: 1.6 }))
+    add(box(0.22, 0.06, 0.22), paint('#24170f'), 0, -0.12, 0)
   } else if (id === 'nose-cap') {
-    add(box(0.7, 0.46, 0.7), paint(color), 0, 0, -0.1)
+    add(geo('nose', () => new THREE.ConeGeometry(0.42, 0.95, 6)), paint(color), 0, 0, -0.28, Math.PI / 2)
+    add(box(0.5, 0.08, 0.2), paint('#e85d4c'), 0, 0.12, -0.05)
   } else if (id === 'antenna') {
-    add(cyl(0.04, 1.1, 6), paint(color), 0, 0.4, 0)
+    add(cyl(0.035, 1.25, 6), paint(color), 0, 0.55, 0)
+    add(sph(0.09), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1 }), 0, 1.15, 0)
   } else if (id === 'hyperdrive') {
-    add(box(0.8, 0.55, 0.8), paint(color))
-    add(sph(0.22), paint('#c9f7ff', { emissive: '#4cc9f0', glow: 0.8 }))
+    add(box(0.78, 0.42, 0.78), paint(color))
+    add(geo('ring-drive', () => new THREE.TorusGeometry(0.36, 0.05, 6, 14)), paint('#d7fff8', { emissive: '#4cc9f0', glow: 1.1 }), 0, 0.28, 0)
+    add(sph(0.2), paint('#e7fbff', { emissive: '#7ae7ff', glow: 1.2 }))
   } else {
-    add(box(0.92, 0.92, 0.92), paint(color))
+    add(box(0.92, 0.78, 0.92), paint(color))
+    add(box(0.96, 0.08, 0.2), paint('#f3e6c8'), 0, 0.28, 0)
   }
   const broken = part.hp != null && part.hp <= 0
   if (broken) group.scale.set(0.2, 0.2, 0.2)

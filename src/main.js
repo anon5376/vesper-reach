@@ -23,13 +23,13 @@ const canvas = document.querySelector('#view')
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.05
+renderer.toneMappingExposure = 1.18
 renderer.setClearColor('#140c18', 1)
 
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(settings.fov || 72, 1, 0.08, 1800)
-const hemi = new THREE.HemisphereLight('#ffd0b8', '#1d4e4a', 0.9)
-const sun = new THREE.DirectionalLight('#fff4df', 1.25)
+const hemi = new THREE.HemisphereLight('#ffd0b0', '#1a6e66', 1.05)
+const sun = new THREE.DirectionalLight('#fff1d6', 1.45)
 sun.position.set(40, 70, 24)
 const amb = new THREE.AmbientLight('#fff6ea', 0.42)
 scene.add(hemi, sun, amb)

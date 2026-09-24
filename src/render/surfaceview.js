@@ -5,9 +5,10 @@ import { sunHeight } from '../base/power.js'
 import { basesHere } from '../base/query.js'
 import { CHUNK_SIZE, chunkOf, heightAt, isCave, seaOf } from '../worldgen/terrain.js'
 import { chunkFeatures } from '../worldgen/features.js'
-import { fillShip, shipSignature } from './shipmesh.js'
+import { fillShip, glowTexture, shipSignature } from './shipmesh.js'
+import { createWaterMaterial, plantGeometry, skyTexture } from './look.js'
 
-const SEG = { low: 4, medium: 6, high: 8 }
+const SEG = { low: 8, medium: 14, high: 20 }
 
 export class SurfaceView {
   constructor(scene) {
@@ -18,12 +19,12 @@ export class SurfaceView {
     this.chunks = new Map()
     this.pool = []
     this.water = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 36),
-      new THREE.MeshStandardMaterial({ color: '#1b78c8', transparent: true, opacity: 0.55, roughness: 0.18, metalness: 0.05, depthWrite: false }),
+      new THREE.CircleGeometry(1, 48),
+      createWaterMaterial(),
     )
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
-    this.flora = instanced(new THREE.ConeGeometry(0.4, 1.8, 5), 420)
+    this.flora = instanced(plantGeometry(), 420)
     this.rocks = instanced(new THREE.DodecahedronGeometry(0.42, 0), 320)
     this.group.add(this.flora, this.rocks)
     this.props = new THREE.Group()
@@ -43,11 +44,26 @@ export class SurfaceView {
     this.group.add(this.beam)
     this.sky = new THREE.Group()
     scene.add(this.sky)
-    this.sun = new THREE.Mesh(new THREE.SphereGeometry(3.2, 12, 8), new THREE.MeshBasicMaterial({ color: '#ffe29a' }))
+    this.skyShell = new THREE.Mesh(
+      new THREE.SphereGeometry(480, 28, 18),
+      new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false, fog: false }),
+    )
+    this.sky.add(this.skyShell)
+    this.sun = new THREE.Mesh(new THREE.SphereGeometry(4.2, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffe7b0', fog: false }))
+    this.sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color: '#ffd7a1',
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      fog: false,
+    }))
+    this.sunGlow.scale.set(34, 34, 1)
+    this.sky.add(this.sunGlow)
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(1.7, 12, 8), new THREE.MeshStandardMaterial({ color: '#f4ead7', emissive: '#d9e7ef', emissiveIntensity: 0.2 }))
     this.sibling = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), new THREE.MeshStandardMaterial({ color: '#c77dff', emissive: '#5ce1e6', emissiveIntensity: 0.15 }))
     this.sky.add(this.sun, this.moon, this.sibling)
-    this.fog = new THREE.FogExp2('#e7b59a', 0.014)
+    this.fog = new THREE.FogExp2('#e7b59a', 0.0048)
     this.chunkSig = ''
     this.propSig = ''
     this.baseSig = ''
@@ -113,10 +129,14 @@ export class SurfaceView {
       this.propSig = sig
       this.scatter(state, wanted, field, biome)
     }
-    this.water.position.set(player.x, seaOf(state.biomeId) + 0.05, player.z)
-    this.water.scale.setScalar(CHUNK_SIZE * (rd + 1.4))
-    this.water.material.color.set(biome.water)
-    this.water.visible = seaOf(state.biomeId) > -12
+    const sea = seaOf(state.biomeId)
+    this.water.position.set(player.x, sea + 0.08, player.z)
+    this.water.scale.setScalar(CHUNK_SIZE * (rd + 1.6))
+    this.water.material.uniforms.uColor.value.set(biome.water)
+    this.water.material.uniforms.uDeep.value.set(biome.low)
+    this.water.material.uniforms.uTime.value = state.time
+    this.water.material.uniforms.uCam.value.copy(camera.position)
+    this.water.visible = sea > -12
     this.drawCamp(state, runtime)
     this.drawShip(state)
     this.drawLife(state, runtime, biome)
@@ -158,7 +178,7 @@ export class SurfaceView {
       for (const feature of features) {
         if (state.harvested[feature.id]) continue
         const y = heightAt(noise, feature.x, feature.z, state.biomeId)
-        if (feature.kind === 'plant') plants.push({ x: feature.x, y, z: feature.z, s: feature.scale || 1, c: biome.accent })
+        if (feature.kind === 'plant') plants.push({ x: feature.x, y, z: feature.z, s: feature.scale || 1, c: (feature.plantIndex || 0) % 2 ? biome.accent : biome.high })
         else if (feature.kind === 'rock') rocks.push({ x: feature.x, y, z: feature.z, s: feature.scale || 1, c: biome.high })
         else props.push({ ...feature, y })
         if (!arch && isCave(noise, feature.x, feature.z)) arch = { x: feature.x, y, z: feature.z }
@@ -166,8 +186,9 @@ export class SurfaceView {
       if (arch) props.push({ kind: 'arch', x: arch.x, y: arch.y, z: arch.z, id: `arch-${cell.x}-${cell.z}` })
     }
     paintInstances(this.flora, plants, this.dummy, (obj, item) => {
-      obj.position.set(item.x, item.y + 0.7 * item.s, item.z)
-      obj.scale.setScalar(item.s)
+      obj.position.set(item.x, item.y, item.z)
+      obj.scale.set(item.s * 1.35, item.s * 1.7, item.s * 1.35)
+      obj.rotation.y = item.x * 0.7
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y + 0.3, item.z)
@@ -210,7 +231,7 @@ export class SurfaceView {
     this.shipSig = sig
     fillShip(this.ship, state.ship.parts)
     const ground = heightAt(this._noise, state.park.x, state.park.z, state.biomeId)
-    this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)), state.park.z)
+    this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)) + 0.15, state.park.z)
     this.ship.rotation.set(0, 0, 0)
   }
 
@@ -280,21 +301,39 @@ export class SurfaceView {
     const ang = (state.time / dayLength) * Math.PI * 2
     const lift = Math.sin(ang)
     this.daylight = Math.max(0, lift)
-    this.sun.position.set(camera.position.x + Math.cos(ang) * 90, camera.position.y + lift * 60, camera.position.z + 16)
-    this.moon.position.set(camera.position.x - Math.cos(ang) * 70, camera.position.y - lift * 40 + 20, camera.position.z - 24)
-    this.sibling.position.set(camera.position.x + 40, camera.position.y + 28, camera.position.z - 80)
+    this.skyShell.position.copy(camera.position)
+    const skyKey = `${biome.id}:${stormish(state)}:${this.daylight < 0.18 ? 'night' : 'day'}`
+    if (skyKey !== this._skyKey) {
+      this._skyKey = skyKey
+      const top = this.daylight < 0.18 ? '#1a1030' : biome.sky
+      const horizon = stormish(state) ? biome.fog : biome.skyHorizon
+      const belly = this.daylight < 0.18 ? '#120c18' : biome.fog
+      if (this.skyShell.material.map) this.skyShell.material.map.dispose()
+      this.skyShell.material.map = skyTexture(top, horizon, belly)
+      this.skyShell.material.needsUpdate = true
+    }
+    this.sun.position.set(camera.position.x + Math.cos(ang) * 140, camera.position.y + lift * 90, camera.position.z + 20)
+    this.sunGlow.position.copy(this.sun.position)
+    this.sunGlow.scale.setScalar(18 + this.daylight * 26)
+    this.sun.visible = this.daylight > 0.02
+    this.moon.position.set(camera.position.x - Math.cos(ang) * 110, camera.position.y - lift * 50 + 30, camera.position.z - 36)
+    this.sibling.position.set(camera.position.x + 70, camera.position.y + 36, camera.position.z - 120)
     this.sibling.material.color.set(biome.accent)
-    const storm = state.weather && state.weather.kind !== 'clear'
+    const storm = stormish(state)
     this.fog.color.set(storm ? biome.fog : biome.skyHorizon)
-    this.fog.density = (storm ? 0.028 : 0.012) + (this.daylight < 0.05 ? 0.01 : 0)
+    this.fog.density = (storm ? 0.016 : 0.0036) + (this.daylight < 0.05 ? 0.004 : 0)
     this._night = this._night || new THREE.Color('#141824')
     this.tint.copy(biome.sky).lerp(this._night, this.daylight < 0 ? 0.75 : (1 - this.daylight) * 0.55)
     if (storm) this.tint.lerp(new THREE.Color(biome.fog), 0.45)
   }
 }
 
+function stormish(state) {
+  return !!(state.weather && state.weather.kind !== 'clear')
+}
+
 function instanced(geometry, count) {
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.75, metalness: 0.04 })
+  const material = new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0.06, vertexColors: true })
   const mesh = new THREE.InstancedMesh(geometry, material, count)
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3)
   mesh.count = 0
@@ -329,6 +368,9 @@ function stampChunk(mesh, cx, cz, noise, biomeId) {
   const mid = new THREE.Color(biome.ground)
   const high = new THREE.Color(biome.high)
   const sand = new THREE.Color(biome.sand)
+  const foam = new THREE.Color('#f4efe4')
+  const deep = new THREE.Color(biome.water)
+  const accent = new THREE.Color(biome.accent)
   const sea = seaOf(biomeId)
   const ox = (cx + 0.5) * CHUNK_SIZE
   const oz = (cz + 0.5) * CHUNK_SIZE
@@ -338,10 +380,15 @@ function stampChunk(mesh, cx, cz, noise, biomeId) {
     const z = pos.getZ(i) + oz
     const h = heightAt(noise, x, z, biomeId)
     pos.setY(i, h)
+    const blot = noise ? noise.noise2(x * 0.09, z * 0.09) : 0
     const t = Math.max(0, Math.min(1, (h - sea) / Math.max(6, biome.amplitude)))
-    if (h < sea + 0.4) scratch.copy(sand)
-    else if (t > 0.55) scratch.copy(mid).lerp(high, t)
-    else scratch.copy(low).lerp(mid, t / 0.55)
+    if (h < sea - 0.8) scratch.copy(deep).lerp(low, 0.35)
+    else if (h < sea + 0.25) scratch.copy(sand).lerp(foam, 0.45 + blot * 0.2)
+    else if (h < sea + 1.5) scratch.copy(sand).lerp(low, 0.35)
+    else if (t > 0.62) scratch.copy(mid).lerp(high, t)
+    else scratch.copy(low).lerp(mid, t / 0.62)
+    if (blot > 0.35 && h > sea + 1.5) scratch.lerp(high, 0.28)
+    if (blot < -0.35 && h > sea + 1.5) scratch.lerp(accent, 0.18)
     colors.setXYZ(i, scratch.r, scratch.g, scratch.b)
   }
   pos.needsUpdate = true
@@ -428,6 +475,14 @@ function creatureMesh(species, biome) {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), headMat)
   head.position.set(0, 0.45, 0.35)
   group.add(head)
+  const eye = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 6, 4),
+    new THREE.MeshStandardMaterial({ color: '#fff6d8', emissive: '#ffe08a', emissiveIntensity: 0.8 }),
+  )
+  eye.position.set(0.08, 0.5, 0.5)
+  const eye2 = eye.clone()
+  eye2.position.x = -0.08
+  group.add(eye, eye2)
   if (species?.legs && species.legs !== 'none') {
     for (const side of [-0.22, 0.22]) {
       const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.4, 0.08), mat)
