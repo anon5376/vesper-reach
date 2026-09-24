@@ -166,7 +166,7 @@ export function setThrustVisual(group, level) {
     if (flame.material?.emissiveIntensity != null && flame.userData.flame && !flame.material.isSpriteMaterial) {
       flame.material.emissiveIntensity = 0.25 + on * 1.4
     }
-    if (flame.material?.isSpriteMaterial) flame.scale.setScalar(0.8 + on)
+    if (flame.material?.isSpriteMaterial) flame.scale.setScalar(1.8 + on * 2.2)
   }
 }
 

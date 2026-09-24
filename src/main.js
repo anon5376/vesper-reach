@@ -125,10 +125,18 @@ function dressLights(mode, state) {
     scene.fog = surfaceView.fog
     scene.background = surfaceView.tint
   } else {
-    sun.position.set(48, 80, 20)
-    sun.intensity = 1.2
-    amb.intensity = 0.48
-    hemi.intensity = 0.85
+    if (!sun.target.parent) scene.add(sun.target)
+    if (state?.location === 'space') {
+      sun.position.set(18, 40, 12)
+      sun.target.position.set(state.space.position.x, state.space.position.y, state.space.position.z)
+    } else {
+      sun.position.set(48, 80, 20)
+      sun.target.position.set(0, 0, 0)
+    }
+    sun.target.updateMatrixWorld()
+    sun.intensity = 1.35
+    amb.intensity = 0.55
+    hemi.intensity = 0.95
     scene.fog = null
     scene.background = null
     if (mode === 'SHIP_EDITOR') scene.background = sky.clone().lerp(night, 0.72)

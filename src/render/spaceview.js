@@ -50,7 +50,7 @@ export class SpaceView {
     this.bodies = new THREE.Group()
     this.root.add(this.bodies)
     this.ship = new THREE.Group()
-    this.ship.scale.setScalar(1.15)
+    this.ship.scale.setScalar(1.7)
     this.root.add(this.ship)
     this.actors = new THREE.Group()
     this.root.add(this.actors)
@@ -116,6 +116,7 @@ export class SpaceView {
       this.rebuild(system)
     }
     const layout = layoutSystem(system, time)
+    this.layout = layout
     this.placeBodies(layout, time)
     if (state && mode !== 'TITLE' && mode !== 'MODE_SELECT') {
       const sig = shipSignature(state.ship.parts)
@@ -242,12 +243,17 @@ export class SpaceView {
     this._euler.set(state.space.pitch, state.space.yaw, state.space.roll, 'YXZ')
     const forward = this._fwd.set(0, 0, -1).applyEuler(this._euler)
     const up = this._up.set(0, 1, 0).applyEuler(this._euler)
+    const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
+    const back = 13 + Math.min(7, speed * 0.08)
+    const lift = 3.4 + Math.min(1.6, speed * 0.03)
     camera.position.set(
-      pos.x - forward.x * 16 + up.x * 4,
-      pos.y - forward.y * 16 + up.y * 4,
-      pos.z - forward.z * 16 + up.z * 4,
+      pos.x - forward.x * back + up.x * lift,
+      pos.y - forward.y * back + up.y * lift,
+      pos.z - forward.z * back + up.z * lift,
     )
-    camera.lookAt(pos.x + forward.x * 12, pos.y + forward.y * 12, pos.z + forward.z * 12)
+    const pushed = this.layout ? keepCameraOutside(camera, this.layout) : false
+    const look = pushed ? 5 : 9
+    camera.lookAt(pos.x + forward.x * look, pos.y + forward.y * look + 0.7, pos.z + forward.z * look)
   }
 
   aimTitle(camera, layout) {
@@ -299,6 +305,34 @@ export class SpaceView {
       mesh.scale.setScalar(scale)
     })
   }
+}
+
+function keepCameraOutside(camera, layout) {
+  let pushed = false
+  for (const planet of layout.planets || []) {
+    if (!planet.position) continue
+    const dx = camera.position.x - planet.position.x
+    const dy = camera.position.y - planet.position.y
+    const dz = camera.position.z - planet.position.z
+    const dist = Math.hypot(dx, dy, dz) || 1
+    const limit = planet.radius + 7
+    if (dist < limit) {
+      const k = limit / dist
+      camera.position.set(
+        planet.position.x + dx * k,
+        planet.position.y + dy * k,
+        planet.position.z + dz * k,
+      )
+      pushed = true
+    }
+  }
+  const starRadius = (layout.star?.radius || 8) + 8
+  const sd = Math.hypot(camera.position.x, camera.position.y, camera.position.z) || 1
+  if (sd < starRadius) {
+    camera.position.multiplyScalar(starRadius / sd)
+    pushed = true
+  }
+  return pushed
 }
 
 function poolSpheres(color, count) {

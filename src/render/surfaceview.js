@@ -32,16 +32,30 @@ export class SurfaceView {
     this.camp = new THREE.Group()
     this.ship = new THREE.Group()
     this.group.add(this.props, this.life, this.camp, this.ship)
-    this.ghost = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 0.8, 1),
-      new THREE.MeshStandardMaterial({ color: '#b6ffb0', transparent: true, opacity: 0.4, emissive: '#b6ffb0', emissiveIntensity: 0.2 }),
+    this.ghost = new THREE.Group()
+    const ghostMat = new THREE.MeshStandardMaterial({ color: '#d8ffc4', transparent: true, opacity: 0.62, emissive: '#b6ff6a', emissiveIntensity: 0.8 })
+    const ghostBox = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.55, 1.05), ghostMat)
+    const ghostPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.07, 0.07, 2.4, 6),
+      new THREE.MeshBasicMaterial({ color: '#e9ffb0', transparent: true, opacity: 0.9 }),
     )
+    ghostPost.position.y = 1.35
+    this.ghost.add(ghostBox, ghostPost)
     this.group.add(this.ghost)
-    this.beam = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]),
-      new THREE.LineBasicMaterial({ color: '#ffb703' }),
-    )
+    this.figure = buildSurveyor()
+    this.group.add(this.figure)
+    const beamGeo = new THREE.CylinderGeometry(0.16, 0.05, 1, 6)
+    beamGeo.translate(0, 0.5, 0)
+    this.beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
+      color: '#d8fff6',
+      transparent: true,
+      opacity: 1,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }))
     this.group.add(this.beam)
+    this._beamUp = new THREE.Vector3(0, 1, 0)
+    this._beamDir = new THREE.Vector3()
     this.sky = new THREE.Group()
     scene.add(this.sky)
     this.skyShell = new THREE.Mesh(
@@ -135,18 +149,48 @@ export class SurfaceView {
     this.water.material.uniforms.uColor.value.set(biome.water)
     this.water.material.uniforms.uDeep.value.set(biome.low)
     this.water.material.uniforms.uTime.value = state.time
-    this.water.material.uniforms.uCam.value.copy(camera.position)
     this.water.visible = sea > -12
     this.drawCamp(state, runtime)
     this.drawShip(state)
     this.drawLife(state, runtime, biome)
     this.drawGhost(runtime, mode)
     this.drawBeam(state, runtime)
+    this.placeWalker(state, camera)
+    this.water.material.uniforms.uCam.value.copy(camera.position)
     this.dressSky(state, biome, camera)
-    const dir = lookOf(state.player)
-    camera.position.set(player.x, player.y, player.z)
-    camera.lookAt(player.x + dir.x, player.y + dir.y, player.z + dir.z)
     runtime.terrainReady = this.chunks.size >= wanted.length
+  }
+
+  placeWalker(state, camera) {
+    const player = state.player
+    const pos = player.position
+    const dir = lookOf(player)
+    const aboard = !!player.aboard
+    this.figure.visible = !aboard
+    if (!aboard) {
+      const moving = Math.hypot(player.velocity.x, player.velocity.z) > 0.35
+      const bob = moving ? Math.sin(state.time * 9) * 0.05 : 0
+      this.figure.position.set(pos.x, pos.y - 1.65 + bob, pos.z)
+      this.figure.rotation.y = player.yaw
+    }
+    const back = aboard ? 12 : 4.15
+    const lift = aboard ? 3.4 : 1.25
+    const shoulder = aboard ? 0.4 : 0.72
+    const rx = Math.cos(player.yaw)
+    const rz = -Math.sin(player.yaw)
+    camera.position.set(
+      pos.x - dir.x * back + rx * shoulder,
+      pos.y - dir.y * back + lift,
+      pos.z - dir.z * back + rz * shoulder,
+    )
+    if (this._noise && !aboard) {
+      const floor = heightAt(this._noise, camera.position.x, camera.position.z, state.biomeId)
+      const sea = seaOf(state.biomeId)
+      const minY = Math.max(floor, sea > -12 ? sea : -999) + 0.7
+      if (camera.position.y < minY) camera.position.y = minY
+    }
+    const aim = aboard ? 8 : 14
+    camera.lookAt(pos.x + dir.x * aim, pos.y + dir.y * aim + (aboard ? 0.4 : 0), pos.z + dir.z * aim)
   }
 
   bindNoise(noise) {
@@ -231,7 +275,7 @@ export class SurfaceView {
     this.shipSig = sig
     fillShip(this.ship, state.ship.parts)
     const ground = heightAt(this._noise, state.park.x, state.park.z, state.biomeId)
-    this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)) + 0.15, state.park.z)
+    this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)) + 1.72, state.park.z)
     this.ship.rotation.set(0, 0, 0)
   }
 
@@ -246,10 +290,10 @@ export class SurfaceView {
         this.life.add(group)
         this.creatures.set(creature.id, group)
       }
-      group.position.set(creature.x, (creature.y || 0) + 0.2, creature.z)
+      group.position.set(creature.x, (creature.y || 0) + 0.35, creature.z)
       group.rotation.y = creature.phase || 0
       const hurt = creature.hp < creature.maxHp
-      group.scale.setScalar(hurt ? 0.92 : 1)
+      group.scale.setScalar(hurt ? 1.2 : 1.45)
     }
     for (const [id, group] of this.creatures) {
       if (!live.has(id)) {
@@ -279,9 +323,14 @@ export class SurfaceView {
     const ghost = runtime.ghost
     this.ghost.visible = mode === 'BASE_BUILD' && !!ghost
     if (!this.ghost.visible) return
-    this.ghost.position.set(ghost.x + 0.5, ghost.y + 0.4, ghost.z + 0.5)
-    this.ghost.material.color.set(ghost.valid ? '#b6ffb0' : '#ff6b6b')
-    this.ghost.material.emissive.set(ghost.valid ? '#7dff9a' : '#ff4d4d')
+    this.ghost.position.set(ghost.x + 0.5, ghost.y + 0.28, ghost.z + 0.5)
+    const box = this.ghost.children[0]
+    const post = this.ghost.children[1]
+    const color = ghost.valid ? '#d8ffc4' : '#ff8d8d'
+    const glow = ghost.valid ? '#b6ff6a' : '#ff4d4d'
+    box.material.color.set(color)
+    box.material.emissive.set(glow)
+    post.material.color.set(glow)
   }
 
   drawBeam(state, runtime) {
@@ -289,11 +338,11 @@ export class SurfaceView {
     if (!runtime.beam) return
     const dir = lookOf(state.player)
     const pos = state.player.position
-    const positions = this.beam.geometry.attributes.position
-    positions.setXYZ(0, pos.x, pos.y, pos.z)
-    positions.setXYZ(1, pos.x + dir.x * 5, pos.y + dir.y * 5, pos.z + dir.z * 5)
-    positions.needsUpdate = true
-    this.beam.geometry.computeBoundingSphere()
+    const len = 8
+    this.beam.scale.set(1, len, 1)
+    this.beam.position.set(pos.x + dir.x * 0.35, pos.y - 0.25 + dir.y * 0.35, pos.z + dir.z * 0.35)
+    this._beamDir.set(dir.x, dir.y, dir.z).normalize()
+    this.beam.quaternion.setFromUnitVectors(this._beamUp, this._beamDir)
   }
 
   dressSky(state, biome, camera) {
@@ -405,14 +454,33 @@ function propMesh(feature, biome) {
     return mesh
   }
   if (feature.poi === 'deposit') {
-    return new THREE.Mesh(new THREE.OctahedronGeometry(0.55), new THREE.MeshStandardMaterial({ color: biome.accent, emissive: biome.accent, emissiveIntensity: 0.55, roughness: 0.35 }))
+    const group = new THREE.Group()
+    const mat = new THREE.MeshStandardMaterial({ color: biome.accent, emissive: biome.accent, emissiveIntensity: 0.75, roughness: 0.28 })
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(1.05, 0), mat)
+    core.position.y = 1.15
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.48, 0), mat)
+    shard.position.set(0.85, 0.5, 0.15)
+    shard.rotation.z = 0.7
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color: biome.accent,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }))
+    glow.scale.set(3.6, 3.6, 1)
+    glow.position.y = 1.2
+    group.add(core, shard, glow)
+    return group
   }
   if (feature.poi === 'crash') {
     const group = new THREE.Group()
-    group.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.4, 1.1), new THREE.MeshStandardMaterial({ color: '#8d99ae' })))
-    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 0.5), new THREE.MeshStandardMaterial({ color: '#e85d4c' }))
-    fin.position.set(0.4, 0.5, 0)
-    group.add(fin)
+    group.add(new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.55, 1.5), new THREE.MeshStandardMaterial({ color: '#8d99ae', roughness: 0.55 })))
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.3, 0.7), new THREE.MeshStandardMaterial({ color: '#e85d4c', emissive: '#e85d4c', emissiveIntensity: 0.25 }))
+    fin.position.set(0.7, 0.7, 0)
+    const scar = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.8), new THREE.MeshStandardMaterial({ color: '#24170f' }))
+    scar.position.set(-0.6, 0.35, 0.2)
+    group.add(fin, scar)
     return group
   }
   if (feature.poi === 'ruin') {
@@ -497,6 +565,34 @@ function creatureMesh(species, biome) {
     tail.position.set(0, 0.1, -0.6)
     group.add(tail)
   }
+  return group
+}
+
+function buildSurveyor() {
+  const group = new THREE.Group()
+  const suit = new THREE.MeshStandardMaterial({ color: '#f3e6c8', roughness: 0.52 })
+  const cloth = new THREE.MeshStandardMaterial({ color: '#1f8a84', roughness: 0.58 })
+  const lampMat = new THREE.MeshStandardMaterial({ color: '#ffe08a', emissive: '#ffb703', emissiveIntensity: 1 })
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.52, 4, 8), suit)
+  body.position.y = 0.98
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8), cloth)
+  helm.position.y = 1.58
+  const visor = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 8, 6),
+    new THREE.MeshStandardMaterial({ color: '#10282c', emissive: '#2ec4b6', emissiveIntensity: 0.45, roughness: 0.15 }),
+  )
+  visor.scale.set(1.15, 0.72, 0.4)
+  visor.position.set(0, 1.58, 0.16)
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.24), cloth)
+  pack.position.set(0, 1.08, -0.3)
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lampMat)
+  lamp.position.set(0.18, 1.18, 0.3)
+  const legGeo = new THREE.CapsuleGeometry(0.1, 0.38, 3, 6)
+  const legL = new THREE.Mesh(legGeo, suit)
+  legL.position.set(-0.15, 0.38, 0)
+  const legR = new THREE.Mesh(legGeo, suit)
+  legR.position.set(0.15, 0.38, 0)
+  group.add(body, helm, visor, pack, lamp, legL, legR)
   return group
 }
 

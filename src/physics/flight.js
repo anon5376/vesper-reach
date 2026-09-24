@@ -54,7 +54,7 @@ export function flightStatus(state, galaxy) {
   const layout = layoutSystem(system, state.time)
   const near = nearestBody(layout, state.space.position)
   const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
-  const canLand = !!(near && near.distance < 24 && near.distance > -2 && speed < 28)
+  const canLand = !!(near && near.distance < 34 && near.distance > -4 && speed < 42)
   const st = layout.station.position
   const dockDist = Math.hypot(state.space.position.x - st.x, state.space.position.y - st.y, state.space.position.z - st.z)
   return { canLand, canDock: dockDist < 16, near, layout, dockDist, speed, system }
@@ -88,8 +88,8 @@ export function updateFlight(state, input, dt, galaxy) {
   const wheel = input.consumeWheel()
   if (state.flight.throttleMode === 'hold') {
     space.throttle = clamp(Math.max(0, forwardInput), 0, 1)
-  } else if (forwardInput > 0.2) space.throttle = clamp(space.throttle + dt * 0.5 * forwardInput, 0, 1)
-  else if (forwardInput < -0.2) space.throttle = clamp(space.throttle + dt * 0.55 * forwardInput, 0, 1)
+  } else if (forwardInput > 0.2) space.throttle = clamp(space.throttle + dt * 1.65 * forwardInput, 0, 1)
+  else if (forwardInput < -0.2) space.throttle = clamp(space.throttle + dt * 1.8 * forwardInput, 0, 1)
   if (input.pressed('throttleUp') || wheel < 0) space.throttle = clamp(space.throttle + 0.1, 0, 1)
   if (input.pressed('throttleDown') || wheel > 0) space.throttle = clamp(space.throttle - 0.1, 0, 1)
 
@@ -142,16 +142,25 @@ export function updateFlight(state, input, dt, galaxy) {
   const system = galaxy.systems[state.systemIndex]
   const layout = layoutSystem(system, state.time)
   const near = nearestBody(layout, space.position)
-  if (near && near.distance < 4) {
+  if (near && near.distance < 10) {
     const p = near.planet.position
     const dx = space.position.x - p.x
     const dy = space.position.y - p.y
     const dz = space.position.z - p.z
     const len = Math.hypot(dx, dy, dz) || 1
-    const push = near.planet.radius + 6
-    space.position.x = p.x + (dx / len) * push
-    space.position.y = p.y + (dy / len) * push
-    space.position.z = p.z + (dz / len) * push
+    const nx = dx / len
+    const ny = dy / len
+    const nz = dz / len
+    const push = near.planet.radius + 12
+    space.position.x = p.x + nx * push
+    space.position.y = p.y + ny * push
+    space.position.z = p.z + nz * push
+    const radial = space.velocity.x * nx + space.velocity.y * ny + space.velocity.z * nz
+    if (radial < 0) {
+      space.velocity.x -= radial * nx
+      space.velocity.y -= radial * ny
+      space.velocity.z -= radial * nz
+    }
   }
   const starR = system.star.radius + 4
   const sd = Math.hypot(space.position.x, space.position.y, space.position.z)

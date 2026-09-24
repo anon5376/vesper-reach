@@ -78,6 +78,7 @@ function blankRuntime() {
     lastScan: 0,
     sip: 0,
     partPick: 'hull-cube',
+    glide: null,
   }
 }
 
@@ -417,7 +418,7 @@ export function createSession(bus, machine, getSettings) {
     state.player.aboard = false
     state.player.flying = false
     state.player.yaw = 0
-    state.player.pitch = -0.28
+    state.player.pitch = -0.1
     state.player.velocity = { x: 0, y: 0, z: 0 }
     const floor = sampleFloorHeight(noise(), pad.x, pad.z, planet.biome)
     state.player.position = { x: pad.x, y: floor + 1.7, z: pad.z }
@@ -426,6 +427,7 @@ export function createSession(bus, machine, getSettings) {
     runtime.creatures = []
     runtime.drones = []
     runtime.bolts = []
+    runtime.glide = null
     runtime.baseRev++
     ensurePlanetEntry(state, lifeFor(state))
     if (machine.state !== 'SURFACE') machine.force('SURFACE')
@@ -461,6 +463,7 @@ export function createSession(bus, machine, getSettings) {
     runtime.pirates = []
     runtime.bolts = []
     runtime.creatures = []
+    runtime.glide = null
     if (machine.state !== 'SPACE') machine.force('SPACE')
     bus.emit('notify', { text: `Folded into ${state.systemName}.` })
   }
@@ -525,8 +528,16 @@ export function createSession(bus, machine, getSettings) {
 
   function globalKeys(input) {
     if (input.pressed('pause')) {
-      if (state.menu) state.menu = null
-      else if (machine.state === 'PAUSED') machine.resume()
+      if (state.menu) {
+        state.menu = null
+        return
+      }
+      if (machine.state === 'SHIP_EDITOR' || machine.state === 'GALAXY_MAP' || machine.state === 'BASE_BUILD') {
+        const back = state.location === 'surface' ? 'SURFACE' : state.location === 'station' ? 'STATION' : 'SPACE'
+        machine.force(machine.state === 'BASE_BUILD' ? 'SURFACE' : back)
+        return
+      }
+      if (machine.state === 'PAUSED') machine.resume()
       else if (machine.state !== 'DEAD') machine.pause()
       return
     }
@@ -603,8 +614,50 @@ export function createSession(bus, machine, getSettings) {
     }
     tickCombat(state, runtime, dt, bus, hurt)
     if (input.pressed('land')) {
-      const res = requestLand(runtime.flight)
-      if (!res.ok && res.error) bus.emit('notify', { text: res.error })
+      if (runtime.glide != null) {
+        runtime.glide = null
+        bus.emit('notify', { text: 'Glide cancelled.' })
+      } else if (runtime.flight?.canLand) {
+        const res = requestLand(runtime.flight)
+        if (!res.ok && res.error) bus.emit('notify', { text: res.error })
+      } else if (runtime.flight?.near && runtime.flight.near.distance < 220) {
+        runtime.glide = runtime.flight.near.index
+        bus.emit('notify', { text: 'The kite noses toward the world.' })
+      } else bus.emit('notify', { text: 'No world close enough to set down.' })
+    }
+    if (runtime.glide != null && !runtime.transition) {
+      const layout = layoutSystem(galaxy.systems[state.systemIndex], state.time)
+      const planet = layout.planets[runtime.glide]
+      if (planet?.position) {
+        const p = planet.position
+        const dx = state.space.position.x - p.x
+        const dy = state.space.position.y - p.y
+        const dz = state.space.position.z - p.z
+        const len = Math.hypot(dx, dy, dz) || 1
+        const hover = planet.radius + 18
+        const tx = p.x + (dx / len) * hover
+        const ty = p.y + 4
+        const tz = p.z + (dz / len) * hover
+        const k = Math.min(1, dt * 2.4)
+        state.space.position.x += (tx - state.space.position.x) * k
+        state.space.position.y += (ty - state.space.position.y) * k
+        state.space.position.z += (tz - state.space.position.z) * k
+        state.space.velocity.x *= 0.72
+        state.space.velocity.y *= 0.72
+        state.space.velocity.z *= 0.72
+        state.space.throttle = 0.7
+        const fdx = p.x - state.space.position.x
+        const fdz = p.z - state.space.position.z
+        const fl = Math.hypot(fdx, fdz) || 1
+        state.space.yaw = Math.atan2(-fdx / fl, -fdz / fl)
+        state.space.pitch = -0.18
+        runtime.flight = flightStatus(state, galaxy)
+        if (runtime.flight.canLand) {
+          runtime.glide = null
+          state.space.velocity = { x: 0, y: 0, z: 0 }
+          requestLand(runtime.flight)
+        }
+      } else runtime.glide = null
     }
     if (input.pressed('interact')) {
       const grave = state.graves.find((entry) => entry.location === 'space' && entry.systemIndex === state.systemIndex && Math.hypot(entry.x - state.space.position.x, entry.z - state.space.position.z) < 14)

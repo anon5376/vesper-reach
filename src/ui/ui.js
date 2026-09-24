@@ -405,7 +405,11 @@ export function createUI(ctx) {
       ? `${state.planetName} · ${BIOMES[state.biomeId]?.name || ''}`
       : state.location === 'station' ? 'At the bell' : state.systemName
     const day = state.params.dayLength || 480
-    const clock = state.location === 'surface' ? (Math.floor((state.time % day) / day * 24)).toString().padStart(2, '0') + ':00' : 'dark'
+    const clock = state.location === 'surface'
+      ? (Math.floor((state.time % day) / day * 24)).toString().padStart(2, '0') + ':00'
+      : state.location === 'space'
+        ? `thrust ${Math.round((state.space.throttle || 0) * 100)} · ${Math.round(Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z))}`
+        : 'bell'
     root.querySelector('#clock').textContent = `${clock}${runtime.storm && runtime.storm !== 'clear' ? ' · ' + runtime.storm : ''}`
     const meters = [
       ['health', player.health, '#e85d4c'],

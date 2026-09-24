@@ -21,23 +21,24 @@ export function generateSystem(seed, index) {
   const planets = []
   for (let i = 0; i < count; i++) {
     const biome = BIOMES[rng.pick(BIOME_IDS)]
+    const radius = rng.range(18, 30)
     const moons = []
     const moonCount = rng.int(3)
     for (let m = 0; m < moonCount; m++) {
       moons.push({
-        radius: rng.range(0.6, 1.6),
-        orbit: rng.range(3.5, 7.5),
+        radius: rng.range(2.2, 4.4),
+        orbit: radius + rng.range(8, 16),
         phase: rng.next() * Math.PI * 2,
         speed: rng.range(0.15, 0.4),
-        color: m % 2 ? '#f3e6c8' : '#9ad7d3',
+        color: m % 2 ? '#f6d7a8' : '#7ee0d6',
       })
     }
     planets.push({
       index: i,
       name: planetName(rng),
       biome: biome.id,
-      radius: rng.range(4.2, 8.4),
-      orbit: 48 + i * 36 + rng.range(0, 8),
+      radius,
+      orbit: 96 + i * 70 + rng.range(0, 12),
       phase: i === 0 ? -Math.PI / 2 : rng.next() * Math.PI * 2,
       speed: 0.012 / (i + 1),
       incline: rng.range(-6, 6),

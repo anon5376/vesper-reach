@@ -39,6 +39,9 @@ None recorded from the last smoke pass. Console errors were zero.
 - Creature runtime is rebuilt on load. Veins, harvests, loot, removals, the codex, markets, camps, graves, and blueprints are saved.
 - `flags.capturing` hides the helm overlay for screenshots and is stripped on save.
 - Frame cost is update plus render work, not the gap between animation frames. Headless animation frames can be throttled.
+- Worlds are about 18–30 units across, on orbits that start near 96, so the belt and the bell stay inside the first world. The kite skims a crust at 12 units and sheds speed aimed into the ground.
+- Land sets the kite down when it is slow and within 34 of the surface. From farther out, within 220, the same key glides toward that world and then sets down. Pressing it again cancels the glide.
+- The space camera stays outside a world when the kite skims it. On foot the camera sits behind a suited surveyor. Escape leaves the shipyard, the chart, and the camp palette before it pauses the walk.
 
 ## Final report
 
@@ -52,6 +55,7 @@ Title and contract select, five difficulty contracts including Charter sliders a
 - A follow-up Node pass: shield 45 fell to 35 under fire, station repair returned ok, a ration raised hunger from 40 to 68, a frozen effect applied, and an exported log imported into drawer 2 with the same seed and cargo.
 - `npm run smoke` passed with zero page errors and zero console errors. For Survey, Hard Vacuum, Lantern Draft, Charter, and One Margin it ran title, new game, fly, land, terrain, mine, craft, ship part (mass 35.4 to 38.4), base piece, powered camp, launch, warp to system 5, save, reload, and a matching signature. Charter stored hazard rate 0.33. One Margin deleted drawer 3 on death. The galaxy chart drew 100 pips. Gamepad button 10 toggled flight assist. 6DOF strafe and assist-off drift were asserted.
 - Screenshots from that run (title, mode select, space, surface, shipyard, camp, galaxy chart, station, inventory) are colored scenes. A 64×36 sample of the surface shot had 127 color bins and 1597 of 2304 bright pixels. Space, the shipyard, and the bell interior were likewise not empty.
+- A later graphics pass painted planet maps, atmosphere rims, a gradient sky, fresnel water, mottled terrain, fan-shaped plants, and a sculpted kite. High-quality surface work after that pass measured 1.35 ms.
 - Frame work over 10 seconds, reset at the start of each sample, headless Chromium with SwiftShader, 1280×720:
   - medium, render distance 4: space 0.69 ms (231 frames), surface 0.88 ms (227 frames)
   - high, render distance 5: space 0.65 ms (240 frames), surface 0.94 ms (218 frames)
@@ -64,4 +68,5 @@ Title and contract select, five difficulty contracts including Charter sliders a
 - A camp shares one power grid. There is no per-wire network.
 - Creatures are spawned again after a reload. The folio remembers what you scanned.
 - Audio is a Web Audio graph with separate master, effect, ambient, and interface buses. It starts on the first gesture, so the headless smoke pass does not assert sound.
-- The shipyard, camp palette, and folio screens are usable and lit, and they are still closer to a playable survey desk than a finished illustration pass.
+- The shipyard, camp palette, and folio screens share the new painted worlds. The interface itself is still a paper desk over the scene.
+- A played session (keyboard and mouse, Survey contract) reached full thrust near 40, glided onto a world, walked, mined, opened the folio and the bench, raised a camp ghost, opened the shipyard with V, and lifted off again. Console errors were zero. `npm run verify-data` passed again after the larger worlds, the glide, and the shoulder camera.
