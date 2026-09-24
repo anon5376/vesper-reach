@@ -7,7 +7,7 @@ import { resolveParams, preset } from '../modes/modes.js'
 import { deriveStats, validateShip } from '../ship/stats.js'
 import { updateFlight, flightStatus } from '../physics/flight.js'
 import { updateWalker, sampleFloorHeight } from '../physics/walker.js'
-import { noiseFor } from '../worldgen/terrain.js'
+import { heightAt, noiseFor, seaOf } from '../worldgen/terrain.js'
 import { generateGalaxy, layoutSystem } from '../worldgen/galaxy.js'
 import { emptyInventory, addItem, countItem } from '../inventory/inventory.js'
 import { giveMany, takeAll } from '../inventory/inventory.js'
@@ -25,6 +25,23 @@ import { commitEditor, editorReport, erasePart, loadDraftBlueprint, moveCursor, 
 import { PART_CATEGORIES } from '../data/parts.js'
 import { deleteSlot, exportText, importText, readSlot, slotSummary, writeSlot } from '../save/save.js'
 import { uid } from './util.js'
+
+function pickPad(noise, biomeId) {
+  const sea = seaOf(biomeId)
+  let best = null
+  for (let ring = 0; ring <= 5; ring++) {
+    const steps = ring === 0 ? 1 : 10
+    for (let i = 0; i < steps; i++) {
+      const ang = (i / steps) * Math.PI * 2
+      const x = Math.round(Math.cos(ang) * ring * 7)
+      const z = Math.round(Math.sin(ang) * ring * 7)
+      const h = heightAt(noise, x, z, biomeId)
+      const score = h - sea
+      if (!best || score > best.score) best = { x, z, h, score }
+    }
+  }
+  return best || { x: 0, z: 0, h: 2, score: 1 }
+}
 
 function blankRuntime() {
   return {
@@ -395,14 +412,15 @@ export function createSession(bus, machine, getSettings) {
     state.biomeId = planet.biome
     state.planetName = planet.name
     state.location = 'surface'
-    state.park = { x: 3, z: 12 }
+    const pad = pickPad(noise(), planet.biome)
+    state.park = { x: pad.x, z: pad.z + 6 }
     state.player.aboard = false
     state.player.flying = false
     state.player.yaw = 0
-    state.player.pitch = -0.08
+    state.player.pitch = -0.28
     state.player.velocity = { x: 0, y: 0, z: 0 }
-    const floor = sampleFloorHeight(noise(), 0, 2, planet.biome)
-    state.player.position = { x: 0, y: floor + 1.65, z: 2 }
+    const floor = sampleFloorHeight(noise(), pad.x, pad.z, planet.biome)
+    state.player.position = { x: pad.x, y: floor + 1.7, z: pad.z }
     state.space.velocity = { x: 0, y: 0, z: 0 }
     state.space.throttle = 0
     runtime.creatures = []
@@ -495,9 +513,10 @@ export function createSession(bus, machine, getSettings) {
   }
 
   function skipTransition() {
-    if (!runtime.transition) return
-    runtime.transition.t = 0.49
-    advanceTransition(0.4)
+    const tr = runtime.transition
+    if (!tr) return
+    if (!tr.switched) applyTransition(tr)
+    runtime.transition = null
   }
 
   function toggleMenu(name) {

@@ -1,7 +1,7 @@
 # Vesper Reach progress
 
 ## Current milestone
-11 — audio, visual polish, performance, settings, smoke, definition of done. Milestones 1–10 are implemented in the playable build and covered by `npm run verify-data`. Browser smoke, screenshots, and the performance sample are the remaining proof.
+Done. All 11 milestones are in the playable build and checked.
 
 ## Completed
 - Event bus, state machine (TITLE, MODE_SELECT, SPACE, SURFACE, STATION, SHIP_EDITOR, BASE_BUILD, GALAXY_MAP, PAUSED, DEAD), seeded RNG and simplex noise.
@@ -14,11 +14,11 @@
 - Base pieces, shared camp power grid, storage, refiner, teleporter.
 - Creatures, flora, scanner, discoveries. Foot and space combat, Ash Kites, Margin Wasps.
 - Station trade, galaxy chart, lantern-drive warp. Procedural Web Audio buses. Settings menu.
-- `window.__debug` for teleport, items, state, seed, and reads. `npm run verify-data` passes.
+- `window.__debug` for teleport, items, state, seed, and reads.
+- `npm run verify-data` and `npm run smoke` both pass. README.md explains how to run, the controls, and the contracts.
 
 ## Open bugs
-- Browser smoke and screenshot inspection have not been recorded yet.
-- Frame-work average over 10 seconds in space and on a surface is not recorded yet.
+None recorded from the last smoke pass. Console errors were zero.
 
 ## Assumptions
 - Each camp is one shared power grid. Solar veils produce only while the sun is up.
@@ -40,5 +40,28 @@
 - `flags.capturing` hides the helm overlay for screenshots and is stripped on save.
 - Frame cost is update plus render work, not the gap between animation frames. Headless animation frames can be throttled.
 
-## Next action
-Run `npm run smoke`, inspect screenshots, fix anything black, empty, or loud in the console, then write the final report.
+## Final report
+
+Vesper Reach is a Vite + Three.js survey game. Assets are procedural. `npm run build` writes a relative `dist/` that a static server can host.
+
+### What was built
+Title and contract select, five difficulty contracts including Charter sliders and One Margin save deletion, space flight in a seeded galaxy of 100 systems, landing, chunked biome terrain, on-foot movement with a jetpack, survival meters and weather, mining, crafting, a tech folio, a snap-grid shipyard whose mass changes handling, camps with a power grid, refiner, storage, and paired bells, creatures and a scanner folio, foot and space combat with Ash Kites and Margin Wasps, station trade, a galaxy chart, and lantern-drive warp. Controls rebind, a gamepad map exists, and both flight schemes plus flight assist are wired. Saves are versioned JSON in three drawers, with export and import.
+
+### Verification evidence
+- `npm run verify-data` passed: 18 raw resources, 12 refined materials, 70 recipes, 8 biomes, 100 deterministic systems, starter kite valid with thrust-to-weight above 1, all five contracts, arcade throttle, 6DOF strafe, assist-off drift, walk and jetpack, mining, smelting, hull and foundation crafting, shipyard placement and blueprint, mass increase, solar/lamp power, refiner output, teleporter hop, save round-trip and slot reload, grave and respawn, permadeath drawer deletion, scan and codex, pirate movement and ship fire, overmine drone, foot blaster, dock, buy and sell, tech unlock, warp fuel spend, heavier hull lowers top speed, hazard pressure, gamepad axis and assist button, rebind.
+- A follow-up Node pass: shield 45 fell to 35 under fire, station repair returned ok, a ration raised hunger from 40 to 68, a frozen effect applied, and an exported log imported into drawer 2 with the same seed and cargo.
+- `npm run smoke` passed with zero page errors and zero console errors. For Survey, Hard Vacuum, Lantern Draft, Charter, and One Margin it ran title, new game, fly, land, terrain, mine, craft, ship part (mass 35.4 to 38.4), base piece, powered camp, launch, warp to system 5, save, reload, and a matching signature. Charter stored hazard rate 0.33. One Margin deleted drawer 3 on death. The galaxy chart drew 100 pips. Gamepad button 10 toggled flight assist. 6DOF strafe and assist-off drift were asserted.
+- Screenshots from that run (title, mode select, space, surface, shipyard, camp, galaxy chart, station, inventory) are colored scenes. A 64×36 sample of the surface shot had 127 color bins and 1597 of 2304 bright pixels. Space, the shipyard, and the bell interior were likewise not empty.
+- Frame work over 10 seconds, reset at the start of each sample, headless Chromium with SwiftShader, 1280×720:
+  - medium, render distance 4: space 0.69 ms (231 frames), surface 0.88 ms (227 frames)
+  - high, render distance 5: space 0.65 ms (240 frames), surface 0.94 ms (218 frames)
+  - smoke’s low preset: space 0.70 ms (239 frames), surface 0.94 ms (260 frames)
+  Work stays under 16.7 ms. The headless browser delivered about 22–26 animation frames per second, so the gap between frames was longer than 16.7 ms even though each frame’s update and render was under 1 ms.
+
+### Known limitations
+- The descent is a short fade, not a flight down onto a round planet.
+- Shelters in the wild are pits and stone arches, not carved caves.
+- A camp shares one power grid. There is no per-wire network.
+- Creatures are spawned again after a reload. The folio remembers what you scanned.
+- Audio is a Web Audio graph with separate master, effect, ambient, and interface buses. It starts on the first gesture, so the headless smoke pass does not assert sound.
+- The shipyard, camp palette, and folio screens are usable and lit, and they are still closer to a playable survey desk than a finished illustration pass.

@@ -2,10 +2,11 @@ import { execSync, spawn } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 
-execSync('npm run build', { stdio: 'inherit', cwd: new URL('..', import.meta.url).pathname })
+const ROOT = new URL('..', import.meta.url).pathname
+execSync('npm run build', { stdio: 'inherit', cwd: ROOT })
 
 const PORT = 4173
-const URL = `http://127.0.0.1:${PORT}/`
+const PAGE_URL = `http://127.0.0.1:${PORT}/`
 const SHOTS = '/tmp/vesper-shots'
 const ART = '/opt/cursor/artifacts/screenshots'
 
@@ -20,7 +21,7 @@ function ok(message) {
 
 function startPreview() {
   const child = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], {
-    cwd: new URL('..', import.meta.url).pathname,
+    cwd: ROOT,
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   let log = ''
@@ -34,7 +35,7 @@ async function waitForServer(child, log) {
   while (Date.now() - started < 20000) {
     if (child.exitCode != null) throw new Error(`preview exited ${child.exitCode}\n${log()}`)
     try {
-      const res = await fetch(URL)
+      const res = await fetch(PAGE_URL)
       if (res.ok) return
     } catch { /* booting */ }
     await new Promise((resolve) => setTimeout(resolve, 200))
@@ -165,24 +166,44 @@ async function playMode(page, modeId, slot, custom) {
   if (landed.location !== 'surface') fail(`${modeId} land ${landed.error || landed.location}`)
   else ok(`${modeId} landed ${landed.biome}`)
   await page.evaluate(() => window.__debug.freeze(true))
-  await frames(page, 4)
-  const terrain = await page.evaluate(() => window.__debug.terrainReady())
-  if (!terrain) fail(`${modeId} terrain not ready`)
-  else ok(`${modeId} terrain`)
+  let terrain = false
+  for (let i = 0; i < 8 && !terrain; i++) {
+    await frames(page, 1)
+    terrain = await page.evaluate(() => window.__debug.terrainReady())
+  }
+  if (!terrain) {
+    const diag = await page.evaluate(() => ({
+      mode: window.__debug.mode(),
+      location: window.__debug.getState()?.location,
+      planet: window.__debug.getState()?.planetIndex,
+      errors: window.__debug.errors.slice(-3),
+    }))
+    fail(`${modeId} terrain not ready ${JSON.stringify(diag)}`)
+  } else ok(`${modeId} terrain`)
 
   const need = modeId === 'survival' ? 12 : 8
-  const ore = await mineUntil(page, need)
+  const ore = await mineUntil(page, Math.max(need, 18))
   if (ore < 6) fail(`${modeId} mined ${ore}`)
   else ok(`${modeId} mined ${ore}`)
 
   const crafted = await page.evaluate(() => {
-    const out = []
-    for (let i = 0; i < 4; i++) out.push(window.__debug.craft('smelt-drift'))
-    out.push(window.__debug.craft('shape-cube'))
-    out.push(window.__debug.craft('pour-foundation'))
-    return out
+    const problems = []
+    let guard = 0
+    while (window.__debug.count('drift-ingot') < 6 && guard < 8) {
+      const row = window.__debug.craft('smelt-drift')
+      if (!row.ok) {
+        problems.push(row.error || 'smelt')
+        break
+      }
+      guard += 1
+    }
+    for (const id of ['shape-cube', 'pour-foundation']) {
+      const row = window.__debug.craft(id)
+      if (!row.ok) problems.push(`${id}: ${row.error}`)
+    }
+    return problems
   })
-  if (crafted.some((row) => !row.ok)) fail(`${modeId} craft ${crafted.filter((row) => !row.ok).map((row) => row.error).join('; ')}`)
+  if (crafted.length) fail(`${modeId} craft ${crafted.join('; ')}`)
   else ok(`${modeId} crafted`)
 
   const massBefore = await page.evaluate(() => window.__debug.stats().mass)
@@ -278,7 +299,7 @@ try {
   page.on('console', (msg) => {
     if (msg.type() === 'error') consoleErrors.push(msg.text())
   })
-  await page.goto(URL, { waitUntil: 'networkidle' })
+  await page.goto(PAGE_URL, { waitUntil: 'networkidle' })
   await ready(page)
   await frames(page, 3)
   const title = await page.locator('h1').innerText()
@@ -372,8 +393,9 @@ try {
     fail(`frame work over 16.7ms space ${spaceSamples.avg.toFixed(2)} surface ${surfaceSamples.avg.toFixed(2)}`)
   }
 
-  const fresh = consoleErrors.filter((line) => !/favicon/i.test(line))
-  if (fresh.length) fail(`console errors:\n${fresh.slice(0, 12).join('\n')}`)
+  const pageErrors = await page.evaluate(() => window.__debug.errors)
+  const fresh = [...consoleErrors, ...pageErrors].filter((line) => !/favicon/i.test(line))
+  if (fresh.length) fail(`console errors:\n${fresh.slice(0, 8).join('\n---\n')}`)
   else ok('no console errors')
 } catch (error) {
   fail(error.stack || error.message)

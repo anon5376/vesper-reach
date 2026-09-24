@@ -19,7 +19,7 @@ export class SurfaceView {
     this.pool = []
     this.water = new THREE.Mesh(
       new THREE.CircleGeometry(1, 36),
-      new THREE.MeshStandardMaterial({ color: '#1b78c8', transparent: true, opacity: 0.7, roughness: 0.18, metalness: 0.05 }),
+      new THREE.MeshStandardMaterial({ color: '#1b78c8', transparent: true, opacity: 0.55, roughness: 0.18, metalness: 0.05, depthWrite: false }),
     )
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
@@ -209,7 +209,8 @@ export class SurfaceView {
     if (sig === this.shipSig) return
     this.shipSig = sig
     fillShip(this.ship, state.ship.parts)
-    this.ship.position.set(state.park.x, heightAt(this._noise, state.park.x, state.park.z, state.biomeId), state.park.z)
+    const ground = heightAt(this._noise, state.park.x, state.park.z, state.biomeId)
+    this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)), state.park.z)
     this.ship.rotation.set(0, 0, 0)
   }
 

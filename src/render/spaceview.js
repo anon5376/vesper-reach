@@ -99,9 +99,9 @@ export class SpaceView {
       setThrustVisual(this.editorShip, 0.2 + Math.sin(this.orbit * 3) * 0.05)
       const cursor = runtime?.editor?.cursor || { x: 0, y: 0, z: 0 }
       this.cursor.position.set(cursor.x, cursor.y, cursor.z)
-      const radius = 12
+      const radius = 8
       const theta = this.orbit * 0.25
-      camera.position.set(Math.sin(theta) * radius, 5.5, Math.cos(theta) * radius)
+      camera.position.set(Math.sin(theta) * radius, 3.4, Math.cos(theta) * radius)
       camera.lookAt(0, 0.4, 0)
       return
     }
@@ -197,10 +197,12 @@ export class SpaceView {
   placeBodies(layout, time) {
     this.planets.forEach((entry, index) => {
       const planet = layout.planets[index]
+      if (!planet?.position) return
       entry.group.position.set(planet.position.x, planet.position.y, planet.position.z)
       entry.group.rotation.y = time * 0.05
       entry.moons.forEach((moon, m) => {
         const src = planet.moons[m]
+        if (!src?.position || !planet.position) return
         moon.position.set(src.position.x - planet.position.x, src.position.y - planet.position.y, src.position.z - planet.position.z)
       })
     })

@@ -85,6 +85,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016)
   last = now
   const started = performance.now()
+  try {
   input.update()
   const ate = ui.eat(input)
   const mode = machine.state
@@ -108,6 +109,9 @@ function loop(now) {
   work.push(spent)
   if (work.length > 600) work.shift()
   adapt(spent)
+  } catch (error) {
+    window.__errors.push(error && error.stack ? error.stack : String(error))
+  }
   requestAnimationFrame(loop)
 }
 
@@ -127,7 +131,8 @@ function dressLights(mode, state) {
     hemi.intensity = 0.85
     scene.fog = null
     scene.background = null
-    if (mode === 'STATION') scene.background = sky.clone().lerp(night, 0.55)
+    if (mode === 'SHIP_EDITOR') scene.background = sky.clone().lerp(night, 0.72)
+    else if (mode === 'STATION') scene.background = sky.clone().lerp(night, 0.55)
   }
 }
 
