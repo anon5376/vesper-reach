@@ -21,8 +21,9 @@ export function packState(state) {
 }
 
 export function unpackState(raw) {
-  if (!raw || typeof raw !== 'object') throw new Error('That log is empty.')
+  if (raw == null || raw === '') throw new Error('That log is empty.')
   const data = typeof raw === 'string' ? JSON.parse(raw) : raw
+  if (!data || typeof data !== 'object') throw new Error('That log is empty.')
   if (data.version !== SAVE_VERSION) throw new Error(`This log uses version ${data.version}, and the desk only reads ${SAVE_VERSION}.`)
   if (!data.state || typeof data.state !== 'object') throw new Error('The log has no survey inside it.')
   data.state.version = SAVE_VERSION

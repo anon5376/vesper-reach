@@ -10,10 +10,11 @@ export function updateWalker(state, input, dt, terrainNoise, hurt) {
   player.yaw -= look.x
   player.pitch = clamp(player.pitch - look.y, -1.25, 1.25)
   if (player.aboard) {
+    const park = state.park || { x: 0, z: 3.2 }
     player.velocity.x = 0
     player.velocity.z = 0
-    player.position.x += (0 - player.position.x) * Math.min(1, dt * 2)
-    player.position.z += (3.2 - player.position.z) * Math.min(1, dt * 2)
+    player.position.x += (park.x - player.position.x) * Math.min(1, dt * 2)
+    player.position.z += ((park.z || 0) + 1.4 - player.position.z) * Math.min(1, dt * 2)
     const floor = sampleFloor(terrainNoise, player.position.x, player.position.z, state.biomeId)
     player.position.y = floor + 2.2
     player.grounded = true

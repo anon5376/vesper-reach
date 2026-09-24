@@ -26,6 +26,7 @@ export const ITEM_LIST = [
   item({ id: 'star-ash', name: 'Star Ash', kind: 'raw', baseValue: 7, desc: 'Soot from a landing, or from a star that sneezed.' }),
   item({ id: 'filament-wire', name: 'Filament Wire', kind: 'raw', baseValue: 11, desc: 'Drawn metal fine enough for a hymn.' }),
   item({ id: 'kelp-fiber', name: 'Kelp Fiber', kind: 'raw', baseValue: 5, desc: 'Rope that grew itself.' }),
+  item({ id: 'marrow-cut', name: 'Marrow Cut', kind: 'raw', baseValue: 8, hunger: 14, desc: 'A cut from something that used to have opinions.' }),
 
   item({ id: 'drift-ingot', name: 'Drift Ingot', kind: 'refined', baseValue: 16, desc: 'Smelted drift, still faintly warm.' }),
   item({ id: 'tempered-glass', name: 'Tempered Glass', kind: 'refined', baseValue: 18, desc: 'A pane that survived the kiln.' }),

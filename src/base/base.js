@@ -70,8 +70,13 @@ export function updateBases(state, dt) {
         piece.job.progress += dt
         if (piece.job.progress >= piece.job.time) {
           const recipe = RECIPES[piece.job.recipeId]
-          piece.job = null
-          if (recipe) addItem(state, recipe.output.id, recipe.output.count)
+          if (!recipe) {
+            piece.job = null
+          } else {
+            const left = addItem(state, recipe.output.id, recipe.output.count)
+            if (left <= 0) piece.job = null
+            else piece.job.progress = piece.job.time
+          }
         }
       }
     }

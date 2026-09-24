@@ -52,6 +52,7 @@ export function starterParts() {
     'thruster-main': '#e85d4c',
     'fuel-tank': '#7c5cbf',
     'landing-gear': '#8d99ae',
+    'shield-generator': '#9ad7ff',
     'hyperdrive': '#4cc9f0',
     'laser-mount': '#ffd6a5',
     'wing-panel': '#d7efe8',
@@ -69,6 +70,7 @@ export function starterParts() {
     ['wing-panel', 2, 0, 1],
     ['wing-panel', -2, 0, 1],
     ['landing-gear', 0, -1, 1],
+    ['shield-generator', 1, 0, 2],
     ['power-core', 0, 0, 2],
     ['thruster-main', 0, 0, 3],
   ]

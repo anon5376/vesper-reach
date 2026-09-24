@@ -78,6 +78,8 @@ export const RECIPE_LIST = [
   recipe('pour-pad', out('landing-pad'), need('alloy-plate', 3, 'circuit-wafer', 1), 'logistics'),
   recipe('hang-beacon', out('beacon'), need('circuit-wafer', 1, 'filament-wire', 1, 'drift-ingot', 1), 'cartography'),
   recipe('pair-bell', out('teleporter'), need('charged-prism', 2, 'circuit-wafer', 2, 'shield-thread', 1), 'logistics'),
+  recipe('sear-marrow', out('ration'), need('marrow-cut', 1), 'fieldcraft', 'campfire'),
+  recipe('stew-marrow', out('field-stew'), need('marrow-cut', 1, 'pure-water', 1), 'agriculture', 'cooker'),
 ]
 
 export const RECIPES = Object.fromEntries(RECIPE_LIST.map((r) => [r.id, r]))

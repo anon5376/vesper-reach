@@ -178,6 +178,9 @@ export function createInput(getSettings) {
     update() {
       pollGamepadEdges()
     },
+    pressedCodes() {
+      return [...pressed]
+    },
     endFrame() {
       pressed.clear()
       released.clear()
