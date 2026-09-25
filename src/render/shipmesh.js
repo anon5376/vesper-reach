@@ -165,7 +165,66 @@ export function fillShip(group, parts) {
     group.add(piece)
     piece.traverse((obj) => { if (obj.userData?.flame) flames.push(obj) })
   }
+  stitchHull(group, parts)
+  fairHull(group, parts)
   group.userData.flames = flames
+}
+
+function fairHull(group, parts) {
+  if (!parts.length) return
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const part of parts) {
+    minX = Math.min(minX, part.x)
+    maxX = Math.max(maxX, part.x)
+    minY = Math.min(minY, part.y)
+    maxY = Math.max(maxY, part.y)
+    minZ = Math.min(minZ, part.z)
+    maxZ = Math.max(maxZ, part.z)
+  }
+  const spanX = maxX - minX
+  const spanZ = maxZ - minZ
+  const alongZ = spanZ >= spanX
+  const length = Math.max(1.6, (alongZ ? spanZ : spanX) + 1.15)
+  const width = Math.max(0.72, Math.min(alongZ ? spanX : spanZ, 2.4) * 0.42 + 0.55)
+  const color = parts.find((part) => String(part.partId).includes('hull'))?.color || parts[0].color || '#f3ead8'
+  const body = new THREE.Mesh(
+    geo(`fair-${length.toFixed(2)}-${width.toFixed(2)}`, () => new THREE.CapsuleGeometry(width * 0.5, Math.max(0.3, length - width), 5, 10)),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.38, metalness: 0.34 }),
+  )
+  body.rotation.x = Math.PI / 2
+  if (!alongZ) body.rotation.z = Math.PI / 2
+  body.position.set((minX + maxX) / 2, (minY + maxY) / 2 - 0.08, (minZ + maxZ) / 2)
+  body.scale.y = alongZ ? 1 : Math.max(1, spanZ / Math.max(0.4, width))
+  group.add(body)
+  const belly = new THREE.Mesh(
+    geo('fair-belly', () => new THREE.SphereGeometry(0.55, 12, 8)),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.46, metalness: 0.22 }),
+  )
+  belly.scale.set(Math.max(1.1, (alongZ ? spanX : spanZ) * 0.28 + 0.8), 0.42, length * 0.42)
+  belly.position.copy(body.position)
+  belly.position.y -= 0.22
+  group.add(belly)
+}
+
+function stitchHull(group, parts) {
+  const keys = new Set(parts.map((part) => `${part.x},${part.y},${part.z}`))
+  const box = geo('hull-stitch', () => new THREE.BoxGeometry(0.55, 0.28, 0.55))
+  for (const part of parts) {
+    for (const [dx, dy, dz] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+      if (!keys.has(`${part.x + dx},${part.y + dy},${part.z + dz}`)) continue
+      const link = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: part.color || '#d9d3c6', roughness: 0.42, metalness: 0.32 }))
+      link.position.set(part.x + dx * 0.5, part.y + dy * 0.5, part.z + dz * 0.5)
+      if (dx) link.scale.set(2.05, 0.95, 1.15)
+      if (dy) link.scale.set(0.9, 2.05, 1.05)
+      if (dz) link.scale.set(1.05, 0.9, 2.05)
+      group.add(link)
+    }
+  }
 }
 
 export function setThrustVisual(group, level) {
