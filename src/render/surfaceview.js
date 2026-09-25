@@ -26,9 +26,9 @@ export class SurfaceView {
     )
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
-    this.flora = instanced(plantGeometry(), 480)
-    this.carpet = instanced(tuftGeometry(), 1400, THREE.DoubleSide)
-    this.rocks = instanced(rockGeometry(), 640)
+    this.flora = instanced(plantGeometry(), 640)
+    this.carpet = instanced(tuftGeometry(), 2400, THREE.DoubleSide)
+    this.rocks = instanced(rockGeometry(), 900)
     this.group.add(this.carpet)
     this.group.add(this.flora, this.rocks)
     this.props = new THREE.Group()
@@ -297,18 +297,23 @@ export class SurfaceView {
     const sea = seaOf(state.biomeId)
     const cover = Math.max(0.15, biome.flora || 0)
     for (const cell of cells) {
-      if (tufts.length >= 1360 && rocks.length >= 600) break
-      for (let i = 2; i < CHUNK_SIZE; i += 4) {
-        for (let j = 2; j < CHUNK_SIZE; j += 4) {
+      if (tufts.length >= 2300 && rocks.length >= 860) break
+      for (let i = 1; i < CHUNK_SIZE; i += 3) {
+        for (let j = 1; j < CHUNK_SIZE; j += 3) {
           const x = cell.x * CHUNK_SIZE + i
           const z = cell.z * CHUNK_SIZE + j
-          const n = noise.noise2(x * 0.13 + 3.1, z * 0.13 - 1.7) * 0.5 + 0.5
-          if (n < 0.34) continue
+          const n = noise.noise2(x * 0.11 + 3.1, z * 0.11 - 1.7) * 0.5 + 0.5
+          if (n < 0.28) continue
           const y = heightAt(noise, x, z, state.biomeId)
-          if (y < sea + 0.45) continue
-          const rocky = cover < 0.25 ? 0.58 : 0.8
-          if (n > rocky && rocks.length < 600) rocks.push({ x, y, z, s: 0.35 + (n - rocky) * 1.6, c: biome.low })
-          else if (tufts.length < 1360 && (cover > 0.2 || n > 0.72)) tufts.push({ x, y, z, s: 0.7 + n * 1.1, c: n > 0.55 ? biome.high : biome.accent })
+          if (y < sea + 0.55) continue
+          const rocky = cover < 0.25 ? 0.62 : 0.84
+          if (n > rocky && rocks.length < 860) rocks.push({ x, y, z, s: 0.55 + (n - rocky) * 2.2, c: n > 0.9 ? biome.accent : biome.low })
+          else if (cover > 0.2 && plants.length < 520 && n > 0.7) plants.push({ x, y, z, s: 0.8 + n, c: biome.high })
+          else if (tufts.length < 2300 && (cover > 0.18 || n > 0.66)) {
+            const tint = n > 0.62 ? biome.accent : biome.high
+            tufts.push({ x, y, z, s: 1.15 + n, c: tint })
+            if (tufts.length < 2300) tufts.push({ x: x + 0.8, y, z: z - 0.45, s: 0.7 + n * 0.7, c: biome.high })
+          }
         }
       }
     }
@@ -319,7 +324,7 @@ export class SurfaceView {
     })
     paintInstances(this.carpet, tufts, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y, item.z)
-      obj.scale.set(item.s * 1.35, item.s * 1.8, item.s * 1.35)
+      obj.scale.set(item.s * 1.6, item.s * 2.3, item.s * 1.6)
       obj.rotation.y = item.x * 1.7 + item.z
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
@@ -550,16 +555,16 @@ function stampChunk(mesh, cx, cz, noise, biomeId) {
     const z = pos.getZ(i) + oz
     const h = heightAt(noise, x, z, biomeId)
     pos.setY(i, h)
-    const blot = noise ? noise.noise2(x * 0.09, z * 0.09) : 0
-    const t = Math.max(0, Math.min(1, (h - sea) / Math.max(6, biome.amplitude)))
-    if (h < sea - 0.8) scratch.copy(deep).lerp(low, 0.35)
-    else if (h < sea + 0.25) scratch.copy(sand).lerp(foam, 0.45 + blot * 0.2)
-    else if (h < sea + 1.5) scratch.copy(sand).lerp(low, 0.35)
-    else if (t > 0.62) scratch.copy(mid).lerp(high, t)
-    else scratch.copy(low).lerp(mid, t / 0.62)
-    if (blot > 0.15 && h > sea + 1.2) scratch.lerp(high, 0.42)
-    if (blot < -0.15 && h > sea + 1.2) scratch.lerp(accent, 0.28)
-    if (Math.abs(blot) < 0.08 && h > sea + 2) scratch.multiplyScalar(0.86)
+    const blot = noise ? noise.noise2(x * 0.045, z * 0.045) : 0
+    const mineral = noise ? noise.noise2(x * 0.11 + 8, z * 0.11) : 0
+    if (h < sea - 1.1) scratch.copy(deep)
+    else if (h < sea + 0.35) scratch.copy(sand).lerp(foam, 0.35)
+    else if (h < sea + 1.1) scratch.copy(sand).lerp(low, (h - sea - 0.35) / 0.75)
+    else if (blot > 0.12) scratch.copy(mid).lerp(high, 0.35 + blot * 0.4)
+    else if (blot < -0.18) scratch.copy(low)
+    else scratch.copy(low).lerp(mid, 0.55)
+    if (mineral > 0.35 && h > sea + 2.2) scratch.lerp(accent, 0.45)
+    if (h > sea + biome.amplitude * 0.55) scratch.lerp(high, 0.35)
     colors.setXYZ(i, scratch.r, scratch.g, scratch.b)
   }
   pos.needsUpdate = true
@@ -732,14 +737,14 @@ float hy = vnoise(vWp.xz * 2.8 + vec2(0.35, 0.0));
 float hz = vnoise(vWp.xz * 2.8 + vec2(0.0, 0.35));
 normal = normalize(normal + vec3(hx - hy, 0.0, hx - hz) * 1.35);`)
       .replace('#include <color_fragment>', `#include <color_fragment>
-float grain = vnoise(vWp.xz * 0.85) * 0.6 + vnoise(vWp.xz * 4.6) * 0.4;
+float grain = vnoise(vWp.xz * 1.7);
+float fine = vnoise(vWp.xz * 8.0);
 float slope = clamp(vWn.y, 0.0, 1.0);
-diffuseColor.rgb *= 0.7 + grain * 0.45;
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.62, 0.52, 0.4), (1.0 - slope) * 0.42);
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.22, 1.08, 0.78), smoothstep(0.78, 1.0, slope) * grain * 0.45);
-float blotch = vnoise(vWp.xz * 0.07);
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, 0.9, 0.62), smoothstep(0.48, 0.8, blotch) * 0.4);
-diffuseColor.rgb *= 0.9 + grain * 0.22;`)
+vec3 zone = diffuseColor.rgb;
+vec3 rock = vec3(0.34, 0.3, 0.26);
+zone = mix(rock, zone, smoothstep(0.12, 0.48, slope));
+zone *= 0.86 + grain * 0.22 + fine * 0.06;
+diffuseColor.rgb = zone;`)
   }
 }
 

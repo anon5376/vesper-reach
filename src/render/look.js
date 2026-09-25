@@ -307,8 +307,8 @@ export function skyShellMaterial(top, horizon, belly) {
         float h = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
         vec3 col = mix(uBelly, uHorizon, smoothstep(0.0, 0.42, h));
         col = mix(col, uTop, smoothstep(0.28, 0.92, h));
-        vec3 zenith = mix(uTop, vec3(0.22, 0.42, 0.78), 0.42);
-        col = mix(col, zenith, smoothstep(0.48, 0.95, h));
+        vec3 zenith = mix(uTop, vec3(0.08, 0.22, 0.55), 0.78);
+        col = mix(col, zenith, smoothstep(0.32, 0.88, h));
         float haze = pow(1.0 - abs(dir.y), 2.4);
         col = mix(col, uHorizon, haze * 0.28);
         float sun = pow(max(dot(dir, normalize(uSun)), 0.0), 64.0);
@@ -394,8 +394,8 @@ export function createWaterMaterial() {
         col = mix(col, uFoam, smoothstep(0.82, 1.0, fres) * 0.28);
         col += vec3(0.85, 0.75, 0.55) * fres * 0.12;
         float dist = length(uCam - vWorld);
-        float fade = smoothstep(50.0, 160.0, dist);
-        float alpha = mix(0.5 + fres * 0.35, 0.12, fade);
+        float fade = smoothstep(220.0, 900.0, dist);
+        float alpha = mix(0.72 + fres * 0.2, 0.38, fade);
         gl_FragColor = vec4(col, alpha);
       }
     `,

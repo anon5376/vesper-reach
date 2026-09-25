@@ -29,15 +29,16 @@ import { uid } from './util.js'
 function pickPad(noise, biomeId) {
   const sea = seaOf(biomeId)
   let best = null
-  for (let ring = 0; ring <= 5; ring++) {
-    const steps = ring === 0 ? 1 : 10
+  for (let ring = 0; ring <= 8; ring++) {
+    const steps = ring === 0 ? 1 : 12
     for (let i = 0; i < steps; i++) {
       const ang = (i / steps) * Math.PI * 2
-      const x = Math.round(Math.cos(ang) * ring * 7)
-      const z = Math.round(Math.sin(ang) * ring * 7)
+      const x = Math.round(Math.cos(ang) * ring * 8)
+      const z = Math.round(Math.sin(ang) * ring * 8)
       const h = heightAt(noise, x, z, biomeId)
-      const score = h - sea
-      if (!best || score > best.score) best = { x, z, h, score }
+      const rise = h - sea
+      const inland = rise > 2.4 ? rise + 6 : rise
+      if (!best || inland > best.score) best = { x, z, h, score: inland }
     }
   }
   return best || { x: 0, z: 0, h: 2, score: 1 }
@@ -114,7 +115,7 @@ export function createSession(bus, machine, getSettings) {
     const system = galaxy.systems[state.systemIndex]
     const layout = layoutSystem(system, state.time)
     const planet = layout.planets[index] || layout.planets[0]
-    const dist = planet.radius + 20
+    const dist = planet.radius + 14
     state.space.position = {
       x: planet.position.x + dist,
       y: planet.position.y + 5,

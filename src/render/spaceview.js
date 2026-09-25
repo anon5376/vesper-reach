@@ -71,7 +71,7 @@ export class SpaceView {
     this.editor.add(this.cursor)
     const deck = new THREE.Mesh(
       new THREE.CircleGeometry(16, 48),
-      new THREE.MeshStandardMaterial({ color: '#243036', roughness: 0.62, metalness: 0.28 }),
+      new THREE.MeshStandardMaterial({ color: '#31424a', emissive: '#1c333c', emissiveIntensity: 0.55, roughness: 0.62, metalness: 0.28 }),
     )
     deck.rotation.x = -Math.PI / 2
     deck.position.y = -2.42
@@ -108,6 +108,9 @@ export class SpaceView {
     }
     const bayLight = new THREE.PointLight('#ffe4bf', 90, 48, 2)
     bayLight.position.set(2.2, 5.4, 1.4)
+    const floorLight = new THREE.PointLight('#fff6e4', 36, 18, 2)
+    floorLight.position.set(0.4, 1.4, 1.6)
+    this.editor.add(floorLight)
     const fill = new THREE.DirectionalLight('#d7fff6', 0.85)
     fill.position.set(-6, 8, 4)
     this.editor.add(bayLight, fill)
@@ -154,10 +157,10 @@ export class SpaceView {
       setThrustVisual(this.editorShip, 0.2 + Math.sin(this.orbit * 3) * 0.05)
       const cursor = runtime?.editor?.cursor || { x: 0, y: 0, z: 0 }
       this.cursor.position.set(cursor.x, cursor.y, cursor.z)
-      const radius = 8.2
+      const radius = 6.6
       const theta = this.orbit * 0.22
-      camera.position.set(Math.sin(theta) * radius + 3.2, 2.6, Math.cos(theta) * radius)
-      camera.lookAt(2.8, 0.45, 0)
+      camera.position.set(Math.sin(theta) * radius + 0.4, 1.85, Math.cos(theta) * radius + 0.2)
+      camera.lookAt(-2.8, 0.15, 0)
       this.sky.position.copy(camera.position)
       return
     }
@@ -330,16 +333,25 @@ export class SpaceView {
     const forward = this._fwd.set(0, 0, -1).applyEuler(this._euler)
     const up = this._up.set(0, 1, 0).applyEuler(this._euler)
     const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
-    const back = 12.5 + Math.min(3, speed * 0.04)
-    const lift = 3.4 + Math.min(1, speed * 0.02)
+    const world = facingWorld(this.layout, pos, forward)
+    const close = world ? Math.max(0, 1 - world.surface / 55) : 0
+    const back = 9.2 + (1 - close) * 4 + Math.min(2, speed * 0.03)
+    const lift = 2.6 + (1 - close) * 1.2
     camera.position.set(
       pos.x - forward.x * back + up.x * lift,
       pos.y - forward.y * back + up.y * lift,
       pos.z - forward.z * back + up.z * lift,
     )
     const pushed = this.layout ? keepCameraOutside(camera, this.layout) : false
-    const look = pushed ? 5 : 9
-    camera.lookAt(pos.x + forward.x * look, pos.y + forward.y * look + 0.7, pos.z + forward.z * look)
+    const look = pushed ? 6 : 10
+    const aim = this._aim || (this._aim = new THREE.Vector3())
+    aim.set(pos.x + forward.x * look, pos.y + forward.y * look + 0.6, pos.z + forward.z * look)
+    if (world && !pushed) {
+      aim.x += world.dx * close * 0.35
+      aim.y += world.dy * close * 0.35
+      aim.z += world.dz * close * 0.35
+    }
+    camera.lookAt(aim)
   }
 
   aimTitle(camera, layout) {
@@ -462,6 +474,24 @@ function buildWake(count) {
     sprites.push(sprite)
   }
   return { group, sprites, marks: [], cursor: 0 }
+}
+
+function facingWorld(layout, pos, forward) {
+  if (!layout?.planets) return null
+  let best = null
+  for (const planet of layout.planets) {
+    if (!planet.position) continue
+    const dx = planet.position.x - pos.x
+    const dy = planet.position.y - pos.y
+    const dz = planet.position.z - pos.z
+    const dist = Math.hypot(dx, dy, dz) || 1
+    const surface = dist - (planet.radius || 1)
+    if (surface < 2 || surface > 90) continue
+    const dot = (dx * forward.x + dy * forward.y + dz * forward.z) / dist
+    if (dot < 0.25) continue
+    if (!best || surface < best.surface) best = { surface, dx, dy, dz }
+  }
+  return best
 }
 
 function keepCameraOutside(camera, layout) {
