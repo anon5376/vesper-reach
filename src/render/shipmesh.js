@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js'
 
 const geos = new Map()
 
@@ -10,6 +11,7 @@ function geo(key, build) {
 const box = (x, y, z) => geo(`b${x}x${y}x${z}`, () => new THREE.BoxGeometry(x, y, z))
 const cyl = (r, h, n = 8) => geo(`c${r}x${h}x${n}`, () => new THREE.CylinderGeometry(r, r * 0.86, h, n))
 const sph = (r) => geo(`s${r}`, () => new THREE.SphereGeometry(r, 12, 8))
+const rb = (w, h, d, r = 0.08) => geo(`rb${w}x${h}x${d}x${r}`, () => new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w * 0.45, h * 0.45, d * 0.45)))
 
 const mats = new Map()
 
@@ -59,22 +61,25 @@ function meshFor(part) {
     return mesh
   }
   if (id === 'cockpit-lantern') {
-    add(box(0.96, 0.42, 1.15), paint(color))
-    add(box(0.7, 0.22, 0.72), paint('#1b3a3a'), 0, 0.28, -0.08)
-    add(sph(0.36), paint('#e7fff8', { emissive: '#9cf0e4', glow: 0.55, opacity: 0.72, rough: 0.08 }), 0, 0.38, -0.12)
-    add(box(0.08, 0.28, 0.7), paint('#24170f'), -0.28, 0.36, -0.08)
-    add(box(0.08, 0.28, 0.7), paint('#24170f'), 0.28, 0.36, -0.08)
+    add(rb(0.92, 0.46, 1.28, 0.12), paint(color, { rough: 0.42, metal: 0.22 }))
+    add(box(0.96, 0.05, 0.16), paint('#e85d4c'), 0, 0.02, 0.42)
+    add(sph(0.34), paint('#e7fff8', { emissive: '#9cf0e4', glow: 0.7, opacity: 0.55, rough: 0.05, metal: 0.1 }), 0, 0.34, -0.08)
+    add(box(0.62, 0.06, 0.48), paint('#14343a', { rough: 0.2, metal: 0.4 }), 0, 0.42, -0.02)
+    add(box(0.06, 0.22, 0.7), paint('#24170f'), -0.34, 0.32, -0.02)
+    add(box(0.06, 0.22, 0.7), paint('#24170f'), 0.34, 0.32, -0.02)
   } else if (id === 'hull-slope' || id === 'hull-wedge') {
-    add(box(0.96, 0.42, 1.02), paint(color), 0, -0.18, 0)
-    add(box(0.78, 0.28, 0.62), paint(color), 0, 0.12, -0.16)
-    add(box(0.98, 0.06, 0.18), paint('#f3e6c8'), 0, 0.08, 0.2)
+    add(rb(0.9, 0.4, 1.15, 0.08), paint(color, { rough: 0.48 }), 0, -0.12, 0)
+    add(rb(0.7, 0.22, 0.7, 0.06), paint(color), 0, 0.12, -0.12)
+    add(box(0.92, 0.045, 0.14), paint('#f3e6c8'), 0, 0.08, 0.28)
   } else if (id === 'hull-corner') {
-    add(box(0.72, 0.62, 0.72), paint(color), -0.1, -0.05, -0.1)
-    add(box(0.28, 0.16, 0.72), paint('#f3e6c8'), 0.16, 0.22, -0.1)
+    add(rb(0.7, 0.55, 0.7, 0.08), paint(color), -0.08, 0, -0.08)
+    add(box(0.22, 0.08, 0.62), paint('#f3e6c8'), 0.16, 0.22, -0.08)
   } else if (id === 'wing-panel') {
-    add(box(1.7, 0.06, 0.85), paint(color), 0, 0, 0.05)
-    add(box(0.55, 0.08, 0.28), paint('#e85d4c'), 0.7, 0.02, -0.22)
-    add(sph(0.08), paint('#fff1c9', { emissive: '#ffe08a', glow: 1.2 }), 0.82, 0.06, 0.28)
+    const wingMat = new THREE.MeshStandardMaterial({ color, roughness: 0.48, metalness: 0.18, side: THREE.DoubleSide })
+    add(wingGeometry(), wingMat, 0, 0.02, 0.05)
+    add(box(0.28, 0.05, 0.22), paint('#e85d4c', { emissive: '#ff6b4a', glow: 0.35 }), 1.28, 0.04, -0.02)
+    add(sph(0.07), paint('#fff1c9', { emissive: '#ffe08a', glow: 1.3 }), 1.42, 0.06, 0.16)
+    if (part.x < 0) group.scale.x = -1
   } else if (id === 'thruster-main' || id === 'thruster-maneuver') {
     const scale = id === 'thruster-main' ? 1 : 0.62
     const body = add(cyl(0.32 * scale, 0.78 * scale, 10), paint('#2a211c'), 0, 0, 0.05, Math.PI / 2)
@@ -90,49 +95,50 @@ function meshFor(part) {
     sprite.userData.flame = true
     group.add(sprite)
   } else if (id === 'fuel-tank') {
-    add(cyl(0.36, 0.92, 12), paint(color))
-    add(cyl(0.4, 0.08, 12), paint('#f3e6c8'), 0, 0.28, 0)
-    add(cyl(0.4, 0.08, 12), paint('#f3e6c8'), 0, -0.28, 0)
+    add(cyl(0.34, 1.05, 14), paint(color, { metal: 0.35, rough: 0.35 }))
+    add(cyl(0.4, 0.07, 14), paint('#f3e6c8'), 0, 0.32, 0)
+    add(cyl(0.4, 0.07, 14), paint('#e85d4c'), 0, -0.18, 0)
   } else if (id === 'cargo-bay') {
-    add(box(0.98, 0.62, 0.98), paint(color))
-    add(box(0.55, 0.08, 0.7), paint('#24170f'), 0, 0.32, 0)
+    add(rb(0.96, 0.58, 1.05, 0.08), paint(color))
+    add(box(0.5, 0.06, 0.7), paint('#24170f'), 0, 0.3, 0)
   } else if (id === 'shield-generator') {
-    add(box(0.62, 0.5, 0.62), paint(color))
-    add(sph(0.48), paint('#d9f6ff', { emissive: '#7ad7ff', glow: 0.65, opacity: 0.38, rough: 0.1 }))
+    add(rb(0.58, 0.42, 0.58, 0.08), paint(color, { metal: 0.3 }))
+    add(sph(0.46), paint('#d9f6ff', { emissive: '#7ad7ff', glow: 0.8, opacity: 0.32, rough: 0.08 }))
   } else if (id === 'power-core') {
-    add(box(0.7, 0.7, 0.7), paint('#3a2a22'))
-    add(box(0.74, 0.08, 0.74), paint('#f3e6c8'), 0, 0.32, 0)
-    add(sph(0.28), paint('#ffe08a', { emissive: '#ffb703', glow: 1.3 }))
+    add(rb(0.66, 0.66, 0.72, 0.08), paint('#3a2a22', { rough: 0.4, metal: 0.3 }))
+    add(box(0.72, 0.06, 0.16), paint('#f3e6c8'), 0, 0.28, 0.2)
+    add(sph(0.26), paint('#ffe08a', { emissive: '#ffb703', glow: 1.5 }))
   } else if (id === 'laser-mount') {
-    add(box(0.28, 0.16, 0.85), paint(color), 0, 0.22, -0.15)
-    add(sph(0.1), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1.1 }), 0, 0.22, -0.55)
+    add(rb(0.26, 0.14, 0.95, 0.04), paint(color), 0, 0.28, -0.2)
+    add(sph(0.1), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1.4 }), 0, 0.28, -0.68)
   } else if (id === 'cannon-mount') {
-    add(cyl(0.16, 0.95, 8), paint(color), 0, 0.22, 0, Math.PI / 2)
-    add(cyl(0.22, 0.12, 8), paint('#24170f'), 0, 0.22, -0.4, Math.PI / 2)
+    add(cyl(0.14, 1.05, 10), paint(color, { metal: 0.4, rough: 0.35 }), 0, 0.28, 0, Math.PI / 2)
+    add(cyl(0.2, 0.1, 10), paint('#24170f'), 0, 0.28, -0.46, Math.PI / 2)
   } else if (id === 'missile-rack') {
-    add(box(0.78, 0.16, 0.55), paint(color))
-    add(cyl(0.08, 0.7, 6), paint('#e85d4c'), -0.2, 0.16, 0, Math.PI / 2)
-    add(cyl(0.08, 0.7, 6), paint('#e85d4c'), 0.2, 0.16, 0, Math.PI / 2)
+    add(rb(0.78, 0.14, 0.5, 0.04), paint(color))
+    add(cyl(0.07, 0.78, 8), paint('#e85d4c'), -0.2, 0.16, 0, Math.PI / 2)
+    add(cyl(0.07, 0.78, 8), paint('#e85d4c'), 0.2, 0.16, 0, Math.PI / 2)
   } else if (id === 'landing-gear') {
-    add(box(0.1, 0.72, 0.1), paint(color), -0.22, -0.28, 0)
-    add(box(0.1, 0.72, 0.1), paint(color), 0.22, -0.28, 0)
-    add(box(0.7, 0.08, 0.16), paint('#24170f'), 0, -0.62, 0)
+    add(box(0.08, 0.7, 0.08), paint(color), -0.28, -0.22, 0.05)
+    add(box(0.08, 0.7, 0.08), paint(color), 0.28, -0.22, 0.05)
+    add(box(0.86, 0.07, 0.18), paint('#24170f'), 0, -0.58, 0.05)
   } else if (id === 'running-light') {
-    add(sph(0.14), paint('#fff6d8', { emissive: '#ffe08a', glow: 1.6 }))
-    add(box(0.22, 0.06, 0.22), paint('#24170f'), 0, -0.12, 0)
+    add(sph(0.12), paint('#fff6d8', { emissive: '#ffe08a', glow: 1.8 }))
+    add(cyl(0.04, 0.55, 6), paint('#24170f'), 0, 0.28, 0)
   } else if (id === 'nose-cap') {
-    add(geo('nose', () => new THREE.ConeGeometry(0.42, 0.95, 6)), paint(color), 0, 0, -0.28, Math.PI / 2)
-    add(box(0.5, 0.08, 0.2), paint('#e85d4c'), 0, 0.12, -0.05)
+    add(geo('nose', () => new THREE.ConeGeometry(0.38, 1.15, 12)), paint(color, { rough: 0.4, metal: 0.2 }), 0, 0, -0.42, Math.PI / 2)
+    add(box(0.55, 0.05, 0.16), paint('#e85d4c'), 0, 0.1, 0.05)
   } else if (id === 'antenna') {
-    add(cyl(0.035, 1.25, 6), paint(color), 0, 0.55, 0)
-    add(sph(0.09), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1 }), 0, 1.15, 0)
+    add(cyl(0.03, 1.35, 6), paint(color), 0, 0.62, 0)
+    add(sph(0.08), paint('#ff6b6b', { emissive: '#ff4d4d', glow: 1.2 }), 0, 1.28, 0)
   } else if (id === 'hyperdrive') {
-    add(box(0.78, 0.42, 0.78), paint(color))
-    add(geo('ring-drive', () => new THREE.TorusGeometry(0.36, 0.05, 6, 14)), paint('#d7fff8', { emissive: '#4cc9f0', glow: 1.1 }), 0, 0.28, 0)
-    add(sph(0.2), paint('#e7fbff', { emissive: '#7ae7ff', glow: 1.2 }))
+    add(rb(0.72, 0.4, 0.86, 0.08), paint(color, { metal: 0.28 }))
+    add(geo('ring-drive', () => new THREE.TorusGeometry(0.38, 0.045, 8, 18)), paint('#d7fff8', { emissive: '#4cc9f0', glow: 1.3 }), 0, 0.28, 0)
+    add(sph(0.18), paint('#e7fbff', { emissive: '#7ae7ff', glow: 1.4 }))
   } else {
-    add(box(0.92, 0.78, 0.92), paint(color))
-    add(box(0.96, 0.08, 0.2), paint('#f3e6c8'), 0, 0.28, 0)
+    add(rb(0.98, 0.52, 1.35, 0.1), paint(color, { rough: 0.45, metal: 0.2 }))
+    add(box(1.0, 0.045, 0.12), paint('#e85d4c'), 0, 0.16, 0.15)
+    add(box(0.86, 0.04, 0.08), paint('#f3e6c8'), 0, 0.2, -0.28)
   }
   const broken = part.hp != null && part.hp <= 0
   if (broken) group.scale.set(0.2, 0.2, 0.2)
@@ -168,6 +174,27 @@ export function setThrustVisual(group, level) {
     }
     if (flame.material?.isSpriteMaterial) flame.scale.setScalar(1.8 + on * 2.2)
   }
+}
+
+function wingGeometry() {
+  return geo('wing-kite', () => {
+    const shape = new THREE.Shape()
+    shape.moveTo(-1.28, 0.5)
+    shape.lineTo(1.48, 0.06)
+    shape.lineTo(1.38, -0.2)
+    shape.lineTo(-1.02, -0.4)
+    shape.closePath()
+    const wing = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.055,
+      bevelEnabled: true,
+      bevelThickness: 0.012,
+      bevelSize: 0.012,
+      bevelSegments: 1,
+    })
+    wing.translate(0, 0, -0.028)
+    wing.rotateX(Math.PI / 2)
+    return wing
+  })
 }
 
 export function shipSignature(parts) {

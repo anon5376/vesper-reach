@@ -77,19 +77,42 @@ h2 { font-weight: 500; font-style: italic; margin: 0.2rem 0 0.6rem; }
 #hud { position: absolute; inset: 0; pointer-events: none; color: var(--paper); text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
 .top { display: flex; justify-content: space-between; padding: 0.8rem 1rem; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; }
 .brand { font-style: italic; letter-spacing: 0.14em; font-size: 1rem; text-transform: none; }
-#meters { position: absolute; left: 1rem; bottom: 4.2rem; width: min(280px, 40vw); display: grid; gap: 0.18rem; }
-.meter { display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.4rem; align-items: center; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.meter span { display: block; height: 6px; background: rgba(243,230,207,0.2); }
-.meter b { display: block; height: 100%; }
+#meters {
+  position: absolute; left: 1rem; bottom: 4.4rem; width: min(220px, 34vw);
+  display: grid; gap: 0.16rem; padding: 0.45rem 0.65rem 0.55rem;
+  background: linear-gradient(180deg, rgba(16, 10, 12, 0.62), rgba(16, 10, 12, 0.28));
+  border: 1px solid rgba(243, 230, 207, 0.32);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+#meters::before {
+  content: "Suit";
+  font-style: italic;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  opacity: 0.75;
+  margin-bottom: 0.1rem;
+}
+.meter { display: grid; grid-template-columns: 4.2rem 1fr; gap: 0.4rem; align-items: center; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.meter span { display: block; height: 3px; background: rgba(243,230,207,0.18); }
+.meter b { display: block; height: 100%; box-shadow: 0 0 8px currentColor; }
 #fx { position: absolute; left: 1rem; bottom: 11.5rem; display: flex; gap: 0.3rem; flex-wrap: wrap; max-width: 280px; }
 .effect { border: 1px solid rgba(243,230,207,0.5); padding: 0.1rem 0.35rem; font-size: 0.72rem; background: rgba(20,12,18,0.35); }
 #compass { position: absolute; top: 3.2rem; left: 50%; width: min(420px, 70vw); transform: translateX(-50%); height: 1.4rem; border-bottom: 1px solid rgba(243,230,207,0.45); }
 #compass-bar { position: relative; height: 100%; }
 #compass-bar i { position: absolute; top: 0; transform: translateX(-50%); font-style: normal; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
-#xhair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); border: 1px solid rgba(243,230,207,0.85); border-radius: 50%; }
-#xhair:before, #xhair:after { content: ""; position: absolute; background: rgba(243,230,207,0.85); }
-#xhair:before { left: 50%; top: -6px; width: 1px; height: 4px; }
-#xhair:after { left: 50%; bottom: -6px; width: 1px; height: 4px; }
+#xhair {
+  position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
+  transform: translate(-50%, -50%); border: none; border-radius: 0;
+  box-shadow:
+    -11px 0 0 -2px rgba(243,230,207,0.9),
+    11px 0 0 -2px rgba(243,230,207,0.9),
+    0 -11px 0 -2px rgba(243,230,207,0.9),
+    0 11px 0 -2px rgba(243,230,207,0.9);
+}
+#xhair:before, #xhair:after { content: ""; position: absolute; background: rgba(243,230,207,0.95); }
+#xhair:before { left: 2px; top: 2px; width: 2px; height: 2px; border-radius: 50%; }
+#xhair:after { display: none; }
 #prompt { position: absolute; left: 50%; bottom: 5.6rem; transform: translateX(-50%); font-size: 0.95rem; letter-spacing: 0.02em; }
 #feed { position: absolute; right: 1rem; top: 4rem; width: min(280px, 36vw); font-size: 0.86rem; }
 #feed p { margin: 0.2rem 0; background: rgba(18,10,14,0.35); padding: 0.2rem 0.4rem; }

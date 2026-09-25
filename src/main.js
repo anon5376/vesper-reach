@@ -11,6 +11,7 @@ import { SpaceView } from './render/spaceview.js'
 import { SurfaceView } from './render/surfaceview.js'
 import { noiseFor } from './worldgen/terrain.js'
 import { countItem } from './inventory/inventory.js'
+import { createPresenter } from './render/grade.js'
 
 const settings = loadSettings(DEFAULT_SETTINGS)
 const bus = createBus()
@@ -31,8 +32,11 @@ const camera = new THREE.PerspectiveCamera(settings.fov || 72, 1, 0.08, 1800)
 const hemi = new THREE.HemisphereLight('#ffd0b0', '#1a6e66', 1.05)
 const sun = new THREE.DirectionalLight('#fff1d6', 1.45)
 sun.position.set(40, 70, 24)
-const amb = new THREE.AmbientLight('#fff6ea', 0.42)
-scene.add(hemi, sun, amb)
+const rim = new THREE.DirectionalLight('#7ec8c4', 0.62)
+rim.position.set(-48, 18, -36)
+const amb = new THREE.AmbientLight('#fff6ea', 0.28)
+scene.add(hemi, sun, rim, amb)
+const presenter = createPresenter(renderer, scene, camera)
 
 const spaceView = new SpaceView(scene)
 const surfaceView = new SurfaceView(scene)
@@ -63,6 +67,7 @@ function resize() {
   const ratio = settings.graphics === 'high' ? Math.min(window.devicePixelRatio || 1, 1.5) : 1
   renderer.setPixelRatio(ratio)
   renderer.setSize(w, h, false)
+  presenter.setSize(w, h)
   camera.aspect = w / h
   camera.fov = settings.fov || 72
   camera.updateProjectionMatrix()
@@ -103,7 +108,8 @@ function loop(now) {
   dressLights(mode, state)
   ui.update(input)
   audio.update(state, mode)
-  renderer.render(scene, camera)
+  presenter.setQuality(settings.graphics || 'medium')
+  presenter.render()
   input.endFrame()
   const spent = performance.now() - started
   work.push(spent)
@@ -119,7 +125,9 @@ function dressLights(mode, state) {
   const surface = surfaceView.group.visible
   if (surface && state) {
     sun.position.copy(surfaceView.sun.position)
-    sun.intensity = 0.35 + surfaceView.daylight * 1.15
+    rim.position.set(surfaceView.sun.position.x * -0.4, 24, surfaceView.sun.position.z * -0.3)
+    sun.intensity = 0.45 + surfaceView.daylight * 1.25
+    rim.intensity = 0.28 + surfaceView.daylight * 0.35
     amb.intensity = 0.28 + surfaceView.daylight * 0.28
     hemi.intensity = 0.45 + surfaceView.daylight * 0.4
     scene.fog = surfaceView.fog
@@ -135,6 +143,7 @@ function dressLights(mode, state) {
     }
     sun.target.updateMatrixWorld()
     sun.intensity = 1.35
+    rim.intensity = 0.7
     amb.intensity = 0.55
     hemi.intensity = 0.95
     scene.fog = null

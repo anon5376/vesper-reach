@@ -87,6 +87,7 @@ export function atmosphereMaterial(color) {
     transparent: true,
     side: THREE.BackSide,
     depthWrite: false,
+    blending: THREE.AdditiveBlending,
     uniforms: { uColor: { value: new THREE.Color(color) } },
     vertexShader: `
       varying vec3 vNormal;
@@ -104,8 +105,8 @@ export function atmosphereMaterial(color) {
       varying vec3 vWorld;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorld);
-        float rim = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.6);
-        gl_FragColor = vec4(uColor, rim * 0.9);
+        float rim = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.2);
+        gl_FragColor = vec4(uColor, rim * 1.15);
       }
     `,
   })

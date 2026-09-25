@@ -46,18 +46,18 @@ export const PART_CATEGORIES = [
 
 export function starterParts() {
   const paint = {
-    'cockpit-lantern': '#f3e6c8',
-    'hull-cube': '#1f8a84',
-    'power-core': '#f0a202',
-    'thruster-main': '#e85d4c',
-    'fuel-tank': '#7c5cbf',
-    'landing-gear': '#8d99ae',
-    'shield-generator': '#9ad7ff',
-    'hyperdrive': '#4cc9f0',
-    'laser-mount': '#ffd6a5',
-    'wing-panel': '#d7efe8',
-    'nose-cap': '#f6edd8',
-    'running-light': '#fff1c9',
+    'cockpit-lantern': '#f6f0e2',
+    'hull-cube': '#f3ead8',
+    'power-core': '#e7a322',
+    'thruster-main': '#c4492a',
+    'fuel-tank': '#e4d3b4',
+    'landing-gear': '#2c241e',
+    'shield-generator': '#b7e7ff',
+    'hyperdrive': '#1c6d66',
+    'laser-mount': '#2c241e',
+    'wing-panel': '#f7f1e6',
+    'nose-cap': '#f7f1e6',
+    'running-light': '#fff6d4',
   }
   const cells = [
     ['cockpit-lantern', 0, 0, 0],

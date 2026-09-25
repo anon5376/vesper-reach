@@ -6,16 +6,17 @@ import { basesHere } from '../base/query.js'
 import { CHUNK_SIZE, chunkOf, heightAt, isCave, seaOf } from '../worldgen/terrain.js'
 import { chunkFeatures } from '../worldgen/features.js'
 import { fillShip, glowTexture, shipSignature } from './shipmesh.js'
-import { createWaterMaterial, plantGeometry, skyTexture } from './look.js'
+import { cloudTexture, createWaterMaterial, plantGeometry, skyTexture } from './look.js'
 
-const SEG = { low: 8, medium: 14, high: 20 }
+const SEG = { low: 10, medium: 22, high: 32 }
 
 export class SurfaceView {
   constructor(scene) {
     this.group = new THREE.Group()
     scene.add(this.group)
     this.scene = scene
-    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.03 })
+    this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.86, metalness: 0.04 })
+    dressTerrain(this.mat)
     this.chunks = new Map()
     this.pool = []
     this.water = new THREE.Mesh(
@@ -25,7 +26,7 @@ export class SurfaceView {
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
     this.flora = instanced(plantGeometry(), 420)
-    this.rocks = instanced(new THREE.DodecahedronGeometry(0.42, 0), 320)
+    this.rocks = instanced(rockGeometry(), 320)
     this.group.add(this.flora, this.rocks)
     this.props = new THREE.Group()
     this.life = new THREE.Group()
@@ -44,6 +45,22 @@ export class SurfaceView {
     this.group.add(this.ghost)
     this.figure = buildSurveyor()
     this.group.add(this.figure)
+    this.motes = new THREE.Group()
+    const moteMat = new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color: '#fff4dd',
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    for (let i = 0; i < 28; i++) {
+      const mote = new THREE.Sprite(moteMat)
+      mote.scale.setScalar(0.12 + (i % 5) * 0.04)
+      mote.userData.home = new THREE.Vector3((i % 7) - 3, (i % 4) * 0.45, ((i * 3) % 7) - 3)
+      this.motes.add(mote)
+    }
+    this.group.add(this.motes)
     const beamGeo = new THREE.CylinderGeometry(0.16, 0.05, 1, 6)
     beamGeo.translate(0, 0.5, 0)
     this.beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
@@ -77,6 +94,25 @@ export class SurfaceView {
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(1.7, 12, 8), new THREE.MeshStandardMaterial({ color: '#f4ead7', emissive: '#d9e7ef', emissiveIntensity: 0.2 }))
     this.sibling = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 12), new THREE.MeshStandardMaterial({ color: '#c77dff', emissive: '#5ce1e6', emissiveIntensity: 0.15 }))
     this.sky.add(this.sun, this.moon, this.sibling)
+    this.cloudBanks = new THREE.Group()
+    for (let i = 0; i < 5; i++) {
+      const bank = new THREE.Mesh(
+        new THREE.PlaneGeometry(70 + i * 12, 18 + (i % 3) * 4),
+        new THREE.MeshBasicMaterial({
+          map: cloudTexture(i + 3),
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.42,
+          side: THREE.DoubleSide,
+          fog: false,
+        }),
+      )
+      const ang = i * 1.2
+      bank.position.set(Math.cos(ang) * 90, 28 + i * 6, Math.sin(ang) * 70 - 40)
+      bank.lookAt(0, bank.position.y - 8, 0)
+      this.cloudBanks.add(bank)
+    }
+    this.sky.add(this.cloudBanks)
     this.fog = new THREE.FogExp2('#e7b59a', 0.0048)
     this.chunkSig = ''
     this.propSig = ''
@@ -169,13 +205,22 @@ export class SurfaceView {
     this.figure.visible = !aboard
     if (!aboard) {
       const moving = Math.hypot(player.velocity.x, player.velocity.z) > 0.35
-      const bob = moving ? Math.sin(state.time * 9) * 0.05 : 0
+      const bob = moving ? Math.sin(state.time * 9) * 0.045 : 0
       this.figure.position.set(pos.x, pos.y - 1.65 + bob, pos.z)
       this.figure.rotation.y = player.yaw
-    }
-    const back = aboard ? 12 : 4.15
-    const lift = aboard ? 3.4 : 1.25
-    const shoulder = aboard ? 0.4 : 0.72
+      const scarf = this.figure.getObjectByName('scarf')
+      if (scarf) scarf.rotation.x = moving ? Math.sin(state.time * 7) * 0.35 - 0.4 : -0.15
+      this.motes.visible = true
+      this.motes.position.set(pos.x, pos.y - 0.4, pos.z)
+      this.motes.children.forEach((mote, index) => {
+        const home = mote.userData.home
+        const drift = state.time * 0.35 + index
+        mote.position.set(home.x + Math.sin(drift) * 0.4, home.y + Math.cos(drift * 0.7) * 0.25, home.z + Math.cos(drift) * 0.4)
+      })
+    } else this.motes.visible = false
+    const back = aboard ? 11 : 2.65
+    const lift = aboard ? 3.2 : 0.55
+    const shoulder = aboard ? 0.35 : 0.42
     const rx = Math.cos(player.yaw)
     const rz = -Math.sin(player.yaw)
     camera.position.set(
@@ -236,7 +281,7 @@ export class SurfaceView {
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y + 0.3, item.z)
-      obj.scale.setScalar(item.s)
+      obj.scale.setScalar(item.s * 1.85)
     })
     for (const child of [...this.props.children]) this.props.remove(child)
     for (const feature of props.slice(0, 24)) {
@@ -274,6 +319,13 @@ export class SurfaceView {
     if (sig === this.shipSig) return
     this.shipSig = sig
     fillShip(this.ship, state.ship.parts)
+    const shade = new THREE.Mesh(
+      new THREE.CircleGeometry(2.6, 20),
+      new THREE.MeshBasicMaterial({ color: '#12080c', transparent: true, opacity: 0.32, depthWrite: false }),
+    )
+    shade.rotation.x = -Math.PI / 2
+    shade.position.y = -1.66
+    this.ship.add(shade)
     const ground = heightAt(this._noise, state.park.x, state.park.z, state.biomeId)
     this.ship.position.set(state.park.x, Math.max(ground, seaOf(state.biomeId)) + 1.72, state.park.z)
     this.ship.rotation.set(0, 0, 0)
@@ -370,7 +422,7 @@ export class SurfaceView {
     this.sibling.material.color.set(biome.accent)
     const storm = stormish(state)
     this.fog.color.set(storm ? biome.fog : biome.skyHorizon)
-    this.fog.density = (storm ? 0.016 : 0.0036) + (this.daylight < 0.05 ? 0.004 : 0)
+    this.fog.density = (storm ? 0.014 : 0.0022) + (this.daylight < 0.05 ? 0.004 : 0)
     this._night = this._night || new THREE.Color('#141824')
     this.tint.copy(biome.sky).lerp(this._night, this.daylight < 0 ? 0.75 : (1 - this.daylight) * 0.55)
     if (storm) this.tint.lerp(new THREE.Color(biome.fog), 0.45)
@@ -436,8 +488,9 @@ function stampChunk(mesh, cx, cz, noise, biomeId) {
     else if (h < sea + 1.5) scratch.copy(sand).lerp(low, 0.35)
     else if (t > 0.62) scratch.copy(mid).lerp(high, t)
     else scratch.copy(low).lerp(mid, t / 0.62)
-    if (blot > 0.35 && h > sea + 1.5) scratch.lerp(high, 0.28)
-    if (blot < -0.35 && h > sea + 1.5) scratch.lerp(accent, 0.18)
+    if (blot > 0.15 && h > sea + 1.2) scratch.lerp(high, 0.42)
+    if (blot < -0.15 && h > sea + 1.2) scratch.lerp(accent, 0.28)
+    if (Math.abs(blot) < 0.08 && h > sea + 2) scratch.multiplyScalar(0.86)
     colors.setXYZ(i, scratch.r, scratch.g, scratch.b)
   }
   pos.needsUpdate = true
@@ -568,31 +621,111 @@ function creatureMesh(species, biome) {
   return group
 }
 
+function rockGeometry() {
+  const geo = new THREE.IcosahedronGeometry(0.62, 1)
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    const z = pos.getZ(i)
+    const n = Math.sin(x * 8.2 + z * 3.1) * Math.cos(y * 6.4 + x) 
+    const s = 0.82 + n * 0.28
+    pos.setXYZ(i, x * s, y * s * 0.72, z * s)
+  }
+  geo.computeVertexNormals()
+  return geo
+}
+
+function dressTerrain(material) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWp;\nvarying vec3 vWn;')
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vWn = normalize(mat3(modelMatrix) * objectNormal);`)
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+varying vec3 vWp;
+varying vec3 vWn;
+float vhash(vec2 p){return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);}
+float vnoise(vec2 p){
+  vec2 i = floor(p); vec2 f = fract(p);
+  float a = vhash(i);
+  float b = vhash(i + vec2(1.0, 0.0));
+  float c = vhash(i + vec2(0.0, 1.0));
+  float d = vhash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}`)
+      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+float hx = vnoise(vWp.xz * 2.8);
+float hy = vnoise(vWp.xz * 2.8 + vec2(0.35, 0.0));
+float hz = vnoise(vWp.xz * 2.8 + vec2(0.0, 0.35));
+normal = normalize(normal + vec3(hx - hy, 0.0, hx - hz) * 1.35);`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+float grain = vnoise(vWp.xz * 0.85) * 0.6 + vnoise(vWp.xz * 4.6) * 0.4;
+float slope = clamp(vWn.y, 0.0, 1.0);
+diffuseColor.rgb *= 0.72 + grain * 0.5;
+diffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.55, 0.5, 0.48), diffuseColor.rgb, smoothstep(0.22, 0.78, slope));
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.02, 0.92), smoothstep(0.55, 0.95, grain) * 0.35);`)
+  }
+}
+
 function buildSurveyor() {
   const group = new THREE.Group()
-  const suit = new THREE.MeshStandardMaterial({ color: '#f3e6c8', roughness: 0.52 })
-  const cloth = new THREE.MeshStandardMaterial({ color: '#1f8a84', roughness: 0.58 })
-  const lampMat = new THREE.MeshStandardMaterial({ color: '#ffe08a', emissive: '#ffb703', emissiveIntensity: 1 })
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.52, 4, 8), suit)
-  body.position.y = 0.98
-  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8), cloth)
+  const suit = new THREE.MeshStandardMaterial({ color: '#f4ead4', roughness: 0.48, metalness: 0.08 })
+  const cloth = new THREE.MeshStandardMaterial({ color: '#176e6a', roughness: 0.5, metalness: 0.12 })
+  const dark = new THREE.MeshStandardMaterial({ color: '#24170f', roughness: 0.6 })
+  const lampMat = new THREE.MeshStandardMaterial({ color: '#ffe08a', emissive: '#ffb703', emissiveIntensity: 1.2 })
+  const visorMat = new THREE.MeshStandardMaterial({ color: '#062428', emissive: '#5ce1e6', emissiveIntensity: 0.85, roughness: 0.08, metalness: 0.4 })
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.42, 4, 10), suit)
+  torso.position.y = 1.02
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.28, 0.12), cloth)
+  chest.position.set(0, 1.08, 0.2)
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), cloth)
   helm.position.y = 1.58
-  const visor = new THREE.Mesh(
-    new THREE.SphereGeometry(0.16, 8, 6),
-    new THREE.MeshStandardMaterial({ color: '#10282c', emissive: '#2ec4b6', emissiveIntensity: 0.45, roughness: 0.15 }),
-  )
-  visor.scale.set(1.15, 0.72, 0.4)
-  visor.position.set(0, 1.58, 0.16)
-  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.5, 0.24), cloth)
-  pack.position.set(0, 1.08, -0.3)
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), lampMat)
-  lamp.position.set(0.18, 1.18, 0.3)
-  const legGeo = new THREE.CapsuleGeometry(0.1, 0.38, 3, 6)
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.08), visorMat)
+  visor.position.set(0, 1.58, 0.2)
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.42, 0.16), cloth)
+  pack.position.set(0, 1.08, -0.26)
+  const tankGeo = new THREE.CylinderGeometry(0.07, 0.07, 0.36, 8)
+  const tankL = new THREE.Mesh(tankGeo, dark)
+  tankL.position.set(-0.1, 1.12, -0.34)
+  const tankR = new THREE.Mesh(tankGeo, dark)
+  tankR.position.set(0.1, 1.12, -0.34)
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), lampMat)
+  lamp.position.set(0.2, 1.22, 0.26)
+  const legGeo = new THREE.CapsuleGeometry(0.09, 0.34, 3, 6)
   const legL = new THREE.Mesh(legGeo, suit)
-  legL.position.set(-0.15, 0.38, 0)
+  legL.position.set(-0.12, 0.4, 0)
   const legR = new THREE.Mesh(legGeo, suit)
-  legR.position.set(0.15, 0.38, 0)
-  group.add(body, helm, visor, pack, lamp, legL, legR)
+  legR.position.set(0.12, 0.4, 0)
+  const bootGeo = new THREE.BoxGeometry(0.14, 0.08, 0.22)
+  const bootL = new THREE.Mesh(bootGeo, dark)
+  bootL.position.set(-0.12, 0.12, 0.04)
+  const bootR = new THREE.Mesh(bootGeo, dark)
+  bootR.position.set(0.12, 0.12, 0.04)
+  const scarf = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.36, 0.03),
+    new THREE.MeshStandardMaterial({ color: '#e85d4c', roughness: 0.55, side: THREE.DoubleSide }),
+  )
+  scarf.name = 'scarf'
+  scarf.position.set(0.02, 1.28, -0.18)
+  scarf.geometry.translate(0, -0.16, 0)
+  const shade = new THREE.Mesh(
+    new THREE.CircleGeometry(0.42, 12),
+    new THREE.MeshBasicMaterial({ color: '#12080c', transparent: true, opacity: 0.35, depthWrite: false }),
+  )
+  shade.rotation.x = -Math.PI / 2
+  shade.position.y = 0.03
+  const pauldronGeo = new THREE.SphereGeometry(0.12, 8, 6)
+  const pauldronL = new THREE.Mesh(pauldronGeo, cloth)
+  pauldronL.scale.set(1.3, 0.7, 1)
+  pauldronL.position.set(-0.32, 1.22, 0.02)
+  const pauldronR = pauldronL.clone()
+  pauldronR.position.x = 0.32
+  group.scale.setScalar(1.12)
+  group.add(torso, chest, helm, visor, pack, tankL, tankR, lamp, legL, legR, bootL, bootR, scarf, shade, pauldronL, pauldronR)
   return group
 }
 

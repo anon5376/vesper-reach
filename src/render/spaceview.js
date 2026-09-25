@@ -47,10 +47,14 @@ export class SpaceView {
       new THREE.MeshBasicMaterial({ map: nebulaTexture(0x51a7), side: THREE.BackSide, depthWrite: false, fog: false }),
     )
     scene.add(this.sky)
+    this.stars = buildStars(1600)
+    this.sky.add(this.stars)
+    this.wake = buildWake(18)
+    this.root.add(this.wake.group)
     this.bodies = new THREE.Group()
     this.root.add(this.bodies)
     this.ship = new THREE.Group()
-    this.ship.scale.setScalar(1.7)
+    this.ship.scale.setScalar(2.25)
     this.root.add(this.ship)
     this.actors = new THREE.Group()
     this.root.add(this.actors)
@@ -58,13 +62,22 @@ export class SpaceView {
     this.editor.visible = false
     scene.add(this.editor)
     this.editorShip = new THREE.Group()
+    this.editorShip.scale.setScalar(1.45)
     this.editor.add(this.editorShip)
     this.cursor = new THREE.Mesh(
       new THREE.BoxGeometry(1.05, 1.05, 1.05),
       new THREE.MeshBasicMaterial({ color: 0xe85d4c, wireframe: true }),
     )
     this.editor.add(this.cursor)
-    this.editor.add(new THREE.GridHelper(16, 16, 0xe85d4c, 0x1f6f68))
+    const deck = new THREE.Mesh(
+      new THREE.CircleGeometry(11, 48),
+      new THREE.MeshStandardMaterial({ color: '#1a2226', roughness: 0.78, metalness: 0.22 }),
+    )
+    deck.rotation.x = -Math.PI / 2
+    deck.position.y = -2.42
+    const grid = new THREE.GridHelper(18, 18, 0x8d5a48, 0x243430)
+    grid.position.y = -2.4
+    this.editor.add(deck, grid)
     this.station = buildStation()
     scene.add(this.station)
     this.demo = generateSystem(0x51a7e, 2)
@@ -101,10 +114,10 @@ export class SpaceView {
       setThrustVisual(this.editorShip, 0.2 + Math.sin(this.orbit * 3) * 0.05)
       const cursor = runtime?.editor?.cursor || { x: 0, y: 0, z: 0 }
       this.cursor.position.set(cursor.x, cursor.y, cursor.z)
-      const radius = 8
+      const radius = 6.4
       const theta = this.orbit * 0.25
-      camera.position.set(Math.sin(theta) * radius, 3.4, Math.cos(theta) * radius)
-      camera.lookAt(0, 0.4, 0)
+      camera.position.set(Math.sin(theta) * radius, 2.35, Math.cos(theta) * radius)
+      camera.lookAt(0, 0.15, 0)
       this.sky.position.copy(camera.position)
       return
     }
@@ -129,6 +142,7 @@ export class SpaceView {
       this.ship.rotation.order = 'YXZ'
       this.ship.rotation.set(state.space.pitch, state.space.yaw, state.space.roll)
       setThrustVisual(this.ship, state.space.throttle || 0)
+      this.pushWake(state)
       this.aimChase(camera, state)
       this.sky.position.copy(camera.position)
     } else {
@@ -166,13 +180,13 @@ export class SpaceView {
       const biome = BIOMES[planet.biome] || BIOMES.lush
       const group = new THREE.Group()
       const body = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius, 36, 24),
+        new THREE.SphereGeometry(planet.radius, 48, 32),
         new THREE.MeshStandardMaterial({
           map: planetTexture(biome, Math.round((planet.orbit || 1) * 10)),
-          roughness: 0.78,
-          metalness: 0.05,
+          roughness: 0.62,
+          metalness: 0.08,
           emissive: biome.low,
-          emissiveIntensity: 0.12,
+          emissiveIntensity: 0.22,
         }),
       )
       body.userData.dispose = true
@@ -235,6 +249,30 @@ export class SpaceView {
     if (this.belt) this.belt.rotation.y = time * 0.01
   }
 
+  pushWake(state) {
+    const wake = this.wake
+    if (!wake) return
+    const pos = state.space.position
+    const throttle = state.space.throttle || 0
+    wake.cursor = (wake.cursor + 1) % wake.sprites.length
+    if (!wake.marks[wake.cursor]) wake.marks[wake.cursor] = { x: 0, y: 0, z: 0, hot: 0 }
+    const mark = wake.marks[wake.cursor]
+    mark.x = pos.x
+    mark.y = pos.y
+    mark.z = pos.z
+    mark.hot = throttle
+    wake.sprites.forEach((sprite, index) => {
+      const sample = wake.marks[index]
+      const age = (wake.cursor - index + wake.sprites.length) % wake.sprites.length
+      sprite.visible = !!(sample && sample.hot > 0.05 && age > 0)
+      if (!sprite.visible) return
+      sprite.position.set(sample.x, sample.y, sample.z)
+      const fade = 1 - age / wake.sprites.length
+      sprite.scale.setScalar((0.8 + fade * 2.8) * sample.hot)
+      sprite.material.opacity = fade * 0.75
+    })
+  }
+
   aimChase(camera, state) {
     const pos = state.space.position
     this._fwd = this._fwd || new THREE.Vector3()
@@ -244,8 +282,8 @@ export class SpaceView {
     const forward = this._fwd.set(0, 0, -1).applyEuler(this._euler)
     const up = this._up.set(0, 1, 0).applyEuler(this._euler)
     const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
-    const back = 13 + Math.min(7, speed * 0.08)
-    const lift = 3.4 + Math.min(1.6, speed * 0.03)
+    const back = 6.4 + Math.min(3.5, speed * 0.04)
+    const lift = 1.7 + Math.min(0.8, speed * 0.015)
     camera.position.set(
       pos.x - forward.x * back + up.x * lift,
       pos.y - forward.y * back + up.y * lift,
@@ -305,6 +343,60 @@ export class SpaceView {
       mesh.scale.setScalar(scale)
     })
   }
+}
+
+function buildStars(count) {
+  const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+  const rng = new RNG(0x51a7)
+  const warm = new THREE.Color('#ffe6b0')
+  const cool = new THREE.Color('#d7f4ff')
+  const color = new THREE.Color()
+  for (let i = 0; i < count; i++) {
+    const theta = rng.next() * Math.PI * 2
+    const phi = Math.acos(2 * rng.next() - 1)
+    const rad = 640 + rng.next() * 220
+    positions[i * 3] = Math.sin(phi) * Math.cos(theta) * rad
+    positions[i * 3 + 1] = Math.cos(phi) * rad
+    positions[i * 3 + 2] = Math.sin(phi) * Math.sin(theta) * rad
+    color.copy(rng.next() > 0.72 ? warm : cool)
+    colors[i * 3] = color.r
+    colors[i * 3 + 1] = color.g
+    colors[i * 3 + 2] = color.b
+  }
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({
+    size: 1.7,
+    sizeAttenuation: false,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+  }))
+  stars.frustumCulled = false
+  return stars
+}
+
+function buildWake(count) {
+  const group = new THREE.Group()
+  const sprites = []
+  const map = glowMap('#ffb080')
+  for (let i = 0; i < count; i++) {
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map,
+      color: '#ffb080',
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: 0.8,
+    }))
+    sprite.visible = false
+    group.add(sprite)
+    sprites.push(sprite)
+  }
+  return { group, sprites, marks: [], cursor: 0 }
 }
 
 function keepCameraOutside(camera, layout) {
