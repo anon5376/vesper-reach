@@ -92,7 +92,8 @@ for (let i = 0; i < 8; i++) {
 }
 await page.screenshot({ path: `${ART}/ship-yard.png` })
 const errors = await page.evaluate(() => window.__errors.slice())
-console.log(JSON.stringify({ space, landed, errors: [...errors, ...pageErrors] }, null, 2))
+const cover = await page.evaluate(() => window.__cover || null)
+console.log(JSON.stringify({ space, landed, cover, errors: [...errors, ...pageErrors] }, null, 2))
 preview.child.kill('SIGTERM')
 await Promise.race([
   browser.close(),

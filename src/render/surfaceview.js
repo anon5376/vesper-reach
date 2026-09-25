@@ -27,8 +27,8 @@ export class SurfaceView {
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
     this.flora = instanced(plantGeometry(), 640)
-    this.carpet = instanced(tuftGeometry(), 2400, THREE.DoubleSide)
-    this.rocks = instanced(rockGeometry(), 900)
+    this.carpet = instanced(tuftGeometry(), 4800, THREE.DoubleSide, true)
+    this.rocks = instanced(rockGeometry(), 720)
     this.group.add(this.carpet)
     this.group.add(this.flora, this.rocks)
     this.props = new THREE.Group()
@@ -196,7 +196,7 @@ export class SurfaceView {
     const sig = `${state.systemIndex}:${state.planetIndex}:${[...keep].sort().join('|')}`
     if (sig !== this.propSig && field) {
       this.propSig = sig
-      this.scatter(state, wanted, field, biome)
+      this.scatter(state, wanted, field, biome, here)
     }
     const sea = seaOf(state.biomeId)
     this.water.position.set(player.x, sea + 0.08, player.z)
@@ -276,7 +276,7 @@ export class SurfaceView {
     return mesh
   }
 
-  scatter(state, cells, noise, biome) {
+  scatter(state, cells, noise, biome, here) {
     const plants = []
     const rocks = []
     const props = []
@@ -296,27 +296,37 @@ export class SurfaceView {
     const tufts = []
     const sea = seaOf(state.biomeId)
     const cover = Math.max(0.15, biome.flora || 0)
-    for (const cell of cells) {
-      if (tufts.length >= 2300 && rocks.length >= 860) break
-      for (let i = 1; i < CHUNK_SIZE; i += 3) {
-        for (let j = 1; j < CHUNK_SIZE; j += 3) {
+    const ordered = cells.slice().sort((a, b) => {
+      const da = Math.max(Math.abs(a.x - here.cx), Math.abs(a.z - here.cz))
+      const db = Math.max(Math.abs(b.x - here.cx), Math.abs(b.z - here.cz))
+      return da - db
+    })
+    for (const cell of ordered) {
+      if (tufts.length >= 4700 && rocks.length >= 680) break
+      const dist = Math.max(Math.abs(cell.x - here.cx), Math.abs(cell.z - here.cz))
+      const step = dist === 0 ? 1 : dist === 1 ? 2 : 5
+      for (let i = 1; i < CHUNK_SIZE; i += step) {
+        for (let j = 1; j < CHUNK_SIZE; j += step) {
           const x = cell.x * CHUNK_SIZE + i
           const z = cell.z * CHUNK_SIZE + j
           const n = noise.noise2(x * 0.11 + 3.1, z * 0.11 - 1.7) * 0.5 + 0.5
-          if (n < 0.28) continue
+          if (dist > 1 && n < 0.38) continue
           const y = heightAt(noise, x, z, state.biomeId)
           if (y < sea + 0.55) continue
-          const rocky = cover < 0.25 ? 0.62 : 0.84
-          if (n > rocky && rocks.length < 860) rocks.push({ x, y, z, s: 0.55 + (n - rocky) * 2.2, c: n > 0.9 ? biome.accent : biome.low })
-          else if (cover > 0.2 && plants.length < 520 && n > 0.7) plants.push({ x, y, z, s: 0.8 + n, c: biome.high })
-          else if (tufts.length < 2300 && (cover > 0.18 || n > 0.66)) {
-            const tint = n > 0.62 ? biome.accent : biome.high
-            tufts.push({ x, y, z, s: 1.15 + n, c: tint })
-            if (tufts.length < 2300) tufts.push({ x: x + 0.8, y, z: z - 0.45, s: 0.7 + n * 0.7, c: biome.high })
+          if (n > 0.9 && rocks.length < 680 && dist < 3) rocks.push({ x, y, z, s: 0.7 + n, c: biome.low })
+          else if (dist < 2 && cover > 0.2 && plants.length < 560 && n > 0.82) plants.push({ x, y, z, s: 1.1 + n * 0.6, c: biome.accent })
+          else if (tufts.length < 4700 && (cover > 0.15 || n > 0.55)) {
+            tufts.push({
+              x, y: y + 0.02, z,
+              s: dist === 0 ? 0.85 + n * 0.35 : 1 + n * 0.4,
+              c: n > 0.58 ? biome.accent : biome.high,
+              near: dist < 2,
+            })
           }
         }
       }
     }
+    if (typeof window !== 'undefined') window.__cover = { tufts: tufts.length, rocks: rocks.length, plants: plants.length }
     paintInstances(this.flora, plants, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y, item.z)
       obj.scale.set(item.s * 2.1, item.s * 2.6, item.s * 2.1)
@@ -324,7 +334,8 @@ export class SurfaceView {
     })
     paintInstances(this.carpet, tufts, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y, item.z)
-      obj.scale.set(item.s * 1.6, item.s * 2.3, item.s * 1.6)
+      const height = item.near ? 1.7 : 2.2
+      obj.scale.set(item.s * 1.4, item.s * height, item.s * 1.4)
       obj.rotation.y = item.x * 1.7 + item.z
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
@@ -497,18 +508,23 @@ function stormish(state) {
 
 function tuftGeometry() {
   const planes = [0, 1, 2].map((i) => {
-    const geo = new THREE.PlaneGeometry(0.46, 0.95)
-    geo.translate(0, 0.48, 0)
+    const geo = new THREE.PlaneGeometry(0.85, 1.35)
+    geo.translate(0, 0.68, 0)
     geo.rotateY((i * Math.PI) / 3)
     return geo
   })
   const merged = mergeGeometries(planes)
   for (const geo of planes) geo.dispose()
+  const colors = new Float32Array(merged.attributes.position.count * 3)
+  colors.fill(1)
+  merged.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   return merged
 }
 
-function instanced(geometry, count, side = THREE.FrontSide) {
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0.06, vertexColors: true, side })
+function instanced(geometry, count, side = THREE.FrontSide, basic = false) {
+  const material = basic
+    ? new THREE.MeshBasicMaterial({ vertexColors: true, side })
+    : new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0.06, vertexColors: true, side })
   const mesh = new THREE.InstancedMesh(geometry, material, count)
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3)
   mesh.count = 0
