@@ -165,7 +165,24 @@ export function fillShip(group, parts) {
     group.add(piece)
     piece.traverse((obj) => { if (obj.userData?.flame) flames.push(obj) })
   }
+  stitchHull(group, parts)
   group.userData.flames = flames
+}
+
+function stitchHull(group, parts) {
+  const keys = new Set(parts.map((part) => `${part.x},${part.y},${part.z}`))
+  const box = geo('hull-stitch', () => new THREE.BoxGeometry(0.55, 0.28, 0.55))
+  for (const part of parts) {
+    for (const [dx, dy, dz] of [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) {
+      if (!keys.has(`${part.x + dx},${part.y + dy},${part.z + dz}`)) continue
+      const link = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color: part.color || '#d9d3c6', roughness: 0.42, metalness: 0.32 }))
+      link.position.set(part.x + dx * 0.5, part.y + dy * 0.5, part.z + dz * 0.5)
+      if (dx) link.scale.set(2.05, 0.95, 1.15)
+      if (dy) link.scale.set(0.9, 2.05, 1.05)
+      if (dz) link.scale.set(1.05, 0.9, 2.05)
+      group.add(link)
+    }
+  }
 }
 
 export function setThrustVisual(group, level) {

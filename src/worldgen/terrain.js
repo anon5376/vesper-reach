@@ -14,7 +14,10 @@ export function noiseFor(seed, systemIndex, planetIndex) {
 export function heightAt(noise, x, z, biomeId) {
   const biome = BIOMES[biomeId] || BIOMES.lush
   const n = noise.fbm2(x * biome.frequency, z * biome.frequency, 4)
-  let h = n * biome.amplitude
+  const detail = noise.fbm2(x * biome.frequency * 5.4, z * biome.frequency * 5.4, 2)
+  const ridge = 1 - Math.abs(noise.noise2(x * biome.frequency * 2.2, z * biome.frequency * 2.2))
+  let h = n * biome.amplitude + detail * Math.min(4.2, biome.amplitude * 0.34)
+  h += (ridge * 2 - 1) * Math.min(6.5, biome.amplitude * 0.38)
   const pit = noise.noise2(x * 0.02 + 40, z * 0.02)
   if (pit > 0.72) h -= ((pit - 0.72) / 0.28) * biome.amplitude * 0.9
   return h

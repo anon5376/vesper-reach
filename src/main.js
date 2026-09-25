@@ -148,7 +148,7 @@ function dressLights(mode, state) {
     hemi.intensity = 0.95
     scene.fog = null
     scene.background = null
-    if (mode === 'SHIP_EDITOR') scene.background = sky.clone().lerp(night, 0.72)
+    if (mode === 'SHIP_EDITOR') scene.background = sky.clone().lerp(night, 0.28)
     else if (mode === 'STATION') scene.background = sky.clone().lerp(night, 0.55)
   }
 }

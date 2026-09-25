@@ -6,7 +6,8 @@ import { basesHere } from '../base/query.js'
 import { CHUNK_SIZE, chunkOf, heightAt, isCave, seaOf } from '../worldgen/terrain.js'
 import { chunkFeatures } from '../worldgen/features.js'
 import { fillShip, glowTexture, shipSignature } from './shipmesh.js'
-import { cloudTexture, createWaterMaterial, plantGeometry, skyTexture } from './look.js'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
+import { cloudTexture, createWaterMaterial, plantGeometry, skyShellMaterial } from './look.js'
 
 const SEG = { low: 10, medium: 22, high: 32 }
 
@@ -25,8 +26,10 @@ export class SurfaceView {
     )
     this.water.rotation.x = -Math.PI / 2
     this.group.add(this.water)
-    this.flora = instanced(plantGeometry(), 420)
-    this.rocks = instanced(rockGeometry(), 320)
+    this.flora = instanced(plantGeometry(), 480)
+    this.carpet = instanced(tuftGeometry(), 1400, THREE.DoubleSide)
+    this.rocks = instanced(rockGeometry(), 640)
+    this.group.add(this.carpet)
     this.group.add(this.flora, this.rocks)
     this.props = new THREE.Group()
     this.life = new THREE.Group()
@@ -92,8 +95,8 @@ export class SurfaceView {
     this.sky = new THREE.Group()
     scene.add(this.sky)
     this.skyShell = new THREE.Mesh(
-      new THREE.SphereGeometry(480, 28, 18),
-      new THREE.MeshBasicMaterial({ side: THREE.BackSide, depthWrite: false, fog: false }),
+      new THREE.SphereGeometry(480, 32, 20),
+      skyShellMaterial('#9fd0ea', '#f4e7cf', '#d7c4a2'),
     )
     this.sky.add(this.skyShell)
     this.sun = new THREE.Mesh(new THREE.SphereGeometry(4.2, 16, 12), new THREE.MeshBasicMaterial({ color: '#ffe7b0', fog: false }))
@@ -197,7 +200,7 @@ export class SurfaceView {
     }
     const sea = seaOf(state.biomeId)
     this.water.position.set(player.x, sea + 0.08, player.z)
-    this.water.scale.setScalar(CHUNK_SIZE * (rd + 1.6))
+    this.water.scale.setScalar(1400)
     this.water.material.uniforms.uColor.value.set(biome.water)
     this.water.material.uniforms.uDeep.value.set(biome.low)
     this.water.material.uniforms.uTime.value = state.time
@@ -290,10 +293,34 @@ export class SurfaceView {
       }
       if (arch) props.push({ kind: 'arch', x: arch.x, y: arch.y, z: arch.z, id: `arch-${cell.x}-${cell.z}` })
     }
+    const tufts = []
+    const sea = seaOf(state.biomeId)
+    const cover = Math.max(0.15, biome.flora || 0)
+    for (const cell of cells) {
+      if (tufts.length >= 1360 && rocks.length >= 600) break
+      for (let i = 2; i < CHUNK_SIZE; i += 4) {
+        for (let j = 2; j < CHUNK_SIZE; j += 4) {
+          const x = cell.x * CHUNK_SIZE + i
+          const z = cell.z * CHUNK_SIZE + j
+          const n = noise.noise2(x * 0.13 + 3.1, z * 0.13 - 1.7) * 0.5 + 0.5
+          if (n < 0.34) continue
+          const y = heightAt(noise, x, z, state.biomeId)
+          if (y < sea + 0.45) continue
+          const rocky = cover < 0.25 ? 0.58 : 0.8
+          if (n > rocky && rocks.length < 600) rocks.push({ x, y, z, s: 0.35 + (n - rocky) * 1.6, c: biome.low })
+          else if (tufts.length < 1360 && (cover > 0.2 || n > 0.72)) tufts.push({ x, y, z, s: 0.7 + n * 1.1, c: n > 0.55 ? biome.high : biome.accent })
+        }
+      }
+    }
     paintInstances(this.flora, plants, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y, item.z)
       obj.scale.set(item.s * 2.1, item.s * 2.6, item.s * 2.1)
       obj.rotation.y = item.x * 0.7
+    })
+    paintInstances(this.carpet, tufts, this.dummy, (obj, item) => {
+      obj.position.set(item.x, item.y, item.z)
+      obj.scale.set(item.s * 1.35, item.s * 1.8, item.s * 1.35)
+      obj.rotation.y = item.x * 1.7 + item.z
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y + 0.3, item.z)
@@ -428,17 +455,22 @@ export class SurfaceView {
     const lift = Math.sin(ang)
     this.daylight = Math.max(0, lift)
     this.skyShell.position.copy(camera.position)
-    const skyKey = `${biome.id}:${stormish(state)}:${this.daylight < 0.18 ? 'night' : 'day'}`
-    if (skyKey !== this._skyKey) {
-      this._skyKey = skyKey
-      const top = this.daylight < 0.18 ? '#1a1030' : biome.sky
-      const horizon = stormish(state) ? biome.fog : biome.skyHorizon
-      const belly = this.daylight < 0.18 ? '#120c18' : biome.fog
-      if (this.skyShell.material.map) this.skyShell.material.map.dispose()
-      this.skyShell.material.map = skyTexture(top, horizon, belly)
-      this.skyShell.material.needsUpdate = true
+    this.cloudBanks.position.copy(camera.position)
+    const top = this.daylight < 0.18 ? '#1a1030' : biome.sky
+    const horizon = stormish(state) ? biome.fog : biome.skyHorizon
+    const belly = this.daylight < 0.18 ? '#120c18' : biome.fog
+    const skyMat = this.skyShell.material
+    if (skyMat.uniforms) {
+      skyMat.uniforms.uTop.value.set(top)
+      skyMat.uniforms.uHorizon.value.set(horizon)
+      skyMat.uniforms.uBelly.value.set(belly)
     }
     this.sun.position.set(camera.position.x + Math.cos(ang) * 140, camera.position.y + lift * 90, camera.position.z + 20)
+    if (skyMat.uniforms) {
+      this._sunDir = this._sunDir || new THREE.Vector3()
+      this._sunDir.copy(this.sun.position).sub(camera.position).normalize()
+      skyMat.uniforms.uSun.value.copy(this._sunDir)
+    }
     this.sunGlow.position.copy(this.sun.position)
     this.sunGlow.scale.setScalar(18 + this.daylight * 26)
     this.sun.visible = this.daylight > 0.02
@@ -447,7 +479,7 @@ export class SurfaceView {
     this.sibling.material.color.set(biome.accent)
     const storm = stormish(state)
     this.fog.color.set(storm ? biome.fog : biome.skyHorizon)
-    this.fog.density = (storm ? 0.01 : 0.00115) + (this.daylight < 0.05 ? 0.003 : 0)
+    this.fog.density = (storm ? 0.008 : 0.00072) + (this.daylight < 0.05 ? 0.0024 : 0)
     this._night = this._night || new THREE.Color('#141824')
     this.tint.copy(biome.sky).lerp(this._night, this.daylight < 0 ? 0.75 : (1 - this.daylight) * 0.55)
     if (storm) this.tint.lerp(new THREE.Color(biome.fog), 0.45)
@@ -458,8 +490,20 @@ function stormish(state) {
   return !!(state.weather && state.weather.kind !== 'clear')
 }
 
-function instanced(geometry, count) {
-  const material = new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0.06, vertexColors: true })
+function tuftGeometry() {
+  const planes = [0, 1, 2].map((i) => {
+    const geo = new THREE.PlaneGeometry(0.46, 0.95)
+    geo.translate(0, 0.48, 0)
+    geo.rotateY((i * Math.PI) / 3)
+    return geo
+  })
+  const merged = mergeGeometries(planes)
+  for (const geo of planes) geo.dispose()
+  return merged
+}
+
+function instanced(geometry, count, side = THREE.FrontSide) {
+  const material = new THREE.MeshStandardMaterial({ roughness: 0.62, metalness: 0.06, vertexColors: true, side })
   const mesh = new THREE.InstancedMesh(geometry, material, count)
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3)
   mesh.count = 0
@@ -691,9 +735,11 @@ normal = normalize(normal + vec3(hx - hy, 0.0, hx - hz) * 1.35);`)
 float grain = vnoise(vWp.xz * 0.85) * 0.6 + vnoise(vWp.xz * 4.6) * 0.4;
 float slope = clamp(vWn.y, 0.0, 1.0);
 diffuseColor.rgb *= 0.7 + grain * 0.45;
-diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.36, 0.24, 0.14), (1.0 - slope) * 0.55);
-diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.68, 0.42), smoothstep(0.72, 1.0, slope) * grain * 0.4);
-diffuseColor.rgb = mix(vec3(0.42, 0.36, 0.22), diffuseColor.rgb, 0.55 + grain * 0.45);`)
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.62, 0.52, 0.4), (1.0 - slope) * 0.42);
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.22, 1.08, 0.78), smoothstep(0.78, 1.0, slope) * grain * 0.45);
+float blotch = vnoise(vWp.xz * 0.07);
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.15, 0.9, 0.62), smoothstep(0.48, 0.8, blotch) * 0.4);
+diffuseColor.rgb *= 0.9 + grain * 0.22;`)
   }
 }
 

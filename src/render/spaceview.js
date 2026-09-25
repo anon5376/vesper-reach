@@ -3,7 +3,7 @@ import { BIOMES } from '../data/biomes.js'
 import { RNG } from '../rng/rng.js'
 import { generateSystem, layoutSystem } from '../worldgen/galaxy.js'
 import { fillShip, setThrustVisual, shipSignature } from './shipmesh.js'
-import { atmosphereMaterial, cloudTexture, planetTexture } from './look.js'
+import { atmosphereMaterial, cloudShellMaterial, planetMaterial } from './look.js'
 
 function nebulaTexture(seed) {
   const rng = new RNG(seed || 1)
@@ -70,8 +70,8 @@ export class SpaceView {
     )
     this.editor.add(this.cursor)
     const deck = new THREE.Mesh(
-      new THREE.CircleGeometry(11, 48),
-      new THREE.MeshStandardMaterial({ color: '#1a2226', roughness: 0.78, metalness: 0.22 }),
+      new THREE.CircleGeometry(16, 48),
+      new THREE.MeshStandardMaterial({ color: '#243036', roughness: 0.62, metalness: 0.28 }),
     )
     deck.rotation.x = -Math.PI / 2
     deck.position.y = -2.42
@@ -82,11 +82,35 @@ export class SpaceView {
       mat.transparent = true
       mat.opacity = 0.18
     }
-    const bay = new THREE.Mesh(
-      new THREE.CylinderGeometry(11.5, 12.2, 3.4, 28, 1, true),
-      new THREE.MeshStandardMaterial({ color: '#1c2a30', side: THREE.DoubleSide, roughness: 0.82, metalness: 0.18 }),
-    )
-    bay.position.y = -0.7
+    const bayMat = new THREE.MeshStandardMaterial({
+      color: '#6d8b96',
+      emissive: '#2a5160',
+      emissiveIntensity: 0.7,
+      side: THREE.DoubleSide,
+      roughness: 0.58,
+      metalness: 0.18,
+    })
+    const bay = new THREE.Mesh(new THREE.CylinderGeometry(16, 16, 14, 36, 1, true), bayMat)
+    bay.position.y = 2.2
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(16, 36), bayMat)
+    ceiling.rotation.x = Math.PI / 2
+    ceiling.position.y = 8.6
+    this.editor.add(ceiling)
+    for (let i = 0; i < 10; i++) {
+      const rib = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 10, 0.28),
+        new THREE.MeshStandardMaterial({ color: '#f3e6c8', emissive: '#ffb703', emissiveIntensity: 0.55, roughness: 0.4 }),
+      )
+      const ang = (i / 10) * Math.PI * 2
+      rib.position.set(Math.cos(ang) * 15.7, 2.2, Math.sin(ang) * 15.7)
+      rib.lookAt(0, 2.2, 0)
+      this.editor.add(rib)
+    }
+    const bayLight = new THREE.PointLight('#ffe4bf', 90, 48, 2)
+    bayLight.position.set(2.2, 5.4, 1.4)
+    const fill = new THREE.DirectionalLight('#d7fff6', 0.85)
+    fill.position.set(-6, 8, 4)
+    this.editor.add(bayLight, fill)
     const lip = new THREE.Mesh(
       new THREE.TorusGeometry(11.6, 0.18, 8, 28),
       new THREE.MeshStandardMaterial({ color: '#c4b49a', roughness: 0.55, metalness: 0.2 }),
@@ -130,10 +154,10 @@ export class SpaceView {
       setThrustVisual(this.editorShip, 0.2 + Math.sin(this.orbit * 3) * 0.05)
       const cursor = runtime?.editor?.cursor || { x: 0, y: 0, z: 0 }
       this.cursor.position.set(cursor.x, cursor.y, cursor.z)
-      const radius = 9.5
-      const theta = this.orbit * 0.25
-      camera.position.set(Math.sin(theta) * radius + 3.4, 2.8, Math.cos(theta) * radius)
-      camera.lookAt(1.4, 0.05, 0)
+      const radius = 8.2
+      const theta = this.orbit * 0.22
+      camera.position.set(Math.sin(theta) * radius + 3.2, 2.6, Math.cos(theta) * radius)
+      camera.lookAt(2.8, 0.45, 0)
       this.sky.position.copy(camera.position)
       return
     }
@@ -196,32 +220,34 @@ export class SpaceView {
       const biome = BIOMES[planet.biome] || BIOMES.lush
       const group = new THREE.Group()
       const body = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius, 48, 32),
-        new THREE.MeshStandardMaterial({
-          map: planetTexture(biome, Math.round((planet.orbit || 1) * 10)),
-          roughness: 0.62,
-          metalness: 0.08,
-          emissive: biome.low,
-          emissiveIntensity: 0.05,
-        }),
+        new THREE.SphereGeometry(planet.radius, 64, 40),
+        planetMaterial(biome, Math.round((planet.orbit || 1) * 10)),
       )
       body.userData.dispose = true
       const clouds = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius * 1.04, 28, 18),
-        new THREE.MeshStandardMaterial({
-          map: cloudTexture((planet.orbit || 1) * 3),
-          transparent: true,
-          depthWrite: false,
-          roughness: 1,
-          opacity: 0.85,
-        }),
+        new THREE.SphereGeometry(planet.radius * 1.035, 40, 24),
+        cloudShellMaterial((planet.orbit || 1) * 3, biome.flora > 0.2 ? 0.92 : 0.62),
       )
       clouds.userData.cloud = true
       const atmos = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius * 1.045, 28, 20),
+        new THREE.SphereGeometry(planet.radius * 1.09, 36, 24),
         atmosphereMaterial(biome.sky),
       )
       group.add(body, clouds, atmos)
+      if (Math.round(planet.orbit || 0) % 3 === 0) {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(planet.radius * 1.35, planet.radius * 1.85, 64),
+          new THREE.MeshBasicMaterial({
+            color: biome.accent,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.45,
+            depthWrite: false,
+          }),
+        )
+        ring.rotation.x = Math.PI / 2.4
+        group.add(ring)
+      }
       const moons = planet.moons.map((moon) => {
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(moon.radius, 12, 10),
@@ -251,7 +277,13 @@ export class SpaceView {
       if (!planet?.position) return
       entry.group.position.set(planet.position.x, planet.position.y, planet.position.z)
       entry.group.rotation.y = time * 0.05
+      const light = entry.group.position.clone()
+      if (light.lengthSq() > 1) light.multiplyScalar(-1).normalize()
+      else light.set(1, 0.25, 0.2).normalize()
+      const shell = entry.group.children[0]
+      if (shell?.material?.uniforms?.uLight) shell.material.uniforms.uLight.value.copy(light)
       const clouds = entry.group.children.find((child) => child.userData.cloud)
+      if (clouds?.material?.uniforms?.uTime) clouds.material.uniforms.uTime.value = time
       if (clouds) clouds.rotation.y = time * 0.02
       entry.moons.forEach((moon, m) => {
         const src = planet.moons[m]
@@ -298,8 +330,8 @@ export class SpaceView {
     const forward = this._fwd.set(0, 0, -1).applyEuler(this._euler)
     const up = this._up.set(0, 1, 0).applyEuler(this._euler)
     const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
-    const back = 16 + Math.min(4, speed * 0.05)
-    const lift = 4.2 + Math.min(1.2, speed * 0.02)
+    const back = 12.5 + Math.min(3, speed * 0.04)
+    const lift = 3.4 + Math.min(1, speed * 0.02)
     camera.position.set(
       pos.x - forward.x * back + up.x * lift,
       pos.y - forward.y * back + up.y * lift,
