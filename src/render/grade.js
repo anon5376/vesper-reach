@@ -41,7 +41,7 @@ const GradeShader = {
 
 export function createPresenter(renderer, scene, camera) {
   const composer = new EffectComposer(renderer)
-  const bloom = new UnrealBloomPass(new THREE.Vector2(384, 216), 0.34, 0.42, 0.88)
+  const bloom = new UnrealBloomPass(new THREE.Vector2(384, 216), 0.2, 0.3, 0.96)
   composer.addPass(new RenderPass(scene, camera))
   composer.addPass(bloom)
   composer.addPass(new ShaderPass(GradeShader))
@@ -55,7 +55,7 @@ export function createPresenter(renderer, scene, camera) {
     },
     setQuality(level) {
       bloom.enabled = level !== 'low'
-      bloom.strength = level === 'high' ? 0.48 : 0.3
+      bloom.strength = level === 'high' ? 0.28 : 0.16
     },
   }
 }

@@ -64,13 +64,29 @@ export class SurfaceView {
     const beamGeo = new THREE.CylinderGeometry(0.16, 0.05, 1, 6)
     beamGeo.translate(0, 0.5, 0)
     this.beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({
-      color: '#d8fff6',
+      color: '#7ef0e4',
       transparent: true,
-      opacity: 1,
+      opacity: 0.95,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     }))
-    this.group.add(this.beam)
+    const sheathGeo = new THREE.CylinderGeometry(0.28, 0.1, 1, 6)
+    sheathGeo.translate(0, 0.5, 0)
+    this.beamSheath = new THREE.Mesh(sheathGeo, new THREE.MeshBasicMaterial({
+      color: '#14343a',
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+    }))
+    this.impact = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(),
+      color: '#9cf6ea',
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }))
+    this.impact.scale.set(0.7, 0.7, 1)
+    this.group.add(this.beam, this.beamSheath, this.impact)
     this._beamUp = new THREE.Vector3(0, 1, 0)
     this._beamDir = new THREE.Vector3()
     this.sky = new THREE.Group()
@@ -218,9 +234,9 @@ export class SurfaceView {
         mote.position.set(home.x + Math.sin(drift) * 0.4, home.y + Math.cos(drift * 0.7) * 0.25, home.z + Math.cos(drift) * 0.4)
       })
     } else this.motes.visible = false
-    const back = aboard ? 11 : 2.65
-    const lift = aboard ? 3.2 : 0.55
-    const shoulder = aboard ? 0.35 : 0.42
+    const back = aboard ? 14 : 4.6
+    const lift = aboard ? 3.6 : 1.15
+    const shoulder = aboard ? 0.4 : 0.85
     const rx = Math.cos(player.yaw)
     const rz = -Math.sin(player.yaw)
     camera.position.set(
@@ -276,12 +292,12 @@ export class SurfaceView {
     }
     paintInstances(this.flora, plants, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y, item.z)
-      obj.scale.set(item.s * 1.35, item.s * 1.7, item.s * 1.35)
+      obj.scale.set(item.s * 2.1, item.s * 2.6, item.s * 2.1)
       obj.rotation.y = item.x * 0.7
     })
     paintInstances(this.rocks, rocks, this.dummy, (obj, item) => {
       obj.position.set(item.x, item.y + 0.3, item.z)
-      obj.scale.setScalar(item.s * 1.85)
+      obj.scale.setScalar(item.s * 2.4)
     })
     for (const child of [...this.props.children]) this.props.remove(child)
     for (const feature of props.slice(0, 24)) {
@@ -387,14 +403,23 @@ export class SurfaceView {
 
   drawBeam(state, runtime) {
     this.beam.visible = !!runtime.beam
+    this.beamSheath.visible = !!runtime.beam
+    this.impact.visible = !!runtime.beam
     if (!runtime.beam) return
     const dir = lookOf(state.player)
     const pos = state.player.position
-    const len = 8
+    const len = 7.2
     this.beam.scale.set(1, len, 1)
-    this.beam.position.set(pos.x + dir.x * 0.35, pos.y - 0.25 + dir.y * 0.35, pos.z + dir.z * 0.35)
+    this.beamSheath.scale.set(1, len, 1)
+    const origin = { x: pos.x + dir.x * 0.4, y: pos.y - 0.35 + dir.y * 0.4, z: pos.z + dir.z * 0.4 }
+    this.beam.position.set(origin.x, origin.y, origin.z)
+    this.beamSheath.position.copy(this.beam.position)
     this._beamDir.set(dir.x, dir.y, dir.z).normalize()
     this.beam.quaternion.setFromUnitVectors(this._beamUp, this._beamDir)
+    this.beamSheath.quaternion.copy(this.beam.quaternion)
+    this.impact.position.set(origin.x + dir.x * len, origin.y + dir.y * len, origin.z + dir.z * len)
+    this.impact.visible = true
+    this.beamSheath.visible = true
   }
 
   dressSky(state, biome, camera) {
@@ -422,7 +447,7 @@ export class SurfaceView {
     this.sibling.material.color.set(biome.accent)
     const storm = stormish(state)
     this.fog.color.set(storm ? biome.fog : biome.skyHorizon)
-    this.fog.density = (storm ? 0.014 : 0.0022) + (this.daylight < 0.05 ? 0.004 : 0)
+    this.fog.density = (storm ? 0.01 : 0.00115) + (this.daylight < 0.05 ? 0.003 : 0)
     this._night = this._night || new THREE.Color('#141824')
     this.tint.copy(biome.sky).lerp(this._night, this.daylight < 0 ? 0.75 : (1 - this.daylight) * 0.55)
     if (storm) this.tint.lerp(new THREE.Color(biome.fog), 0.45)
@@ -665,9 +690,10 @@ normal = normalize(normal + vec3(hx - hy, 0.0, hx - hz) * 1.35);`)
       .replace('#include <color_fragment>', `#include <color_fragment>
 float grain = vnoise(vWp.xz * 0.85) * 0.6 + vnoise(vWp.xz * 4.6) * 0.4;
 float slope = clamp(vWn.y, 0.0, 1.0);
-diffuseColor.rgb *= 0.72 + grain * 0.5;
-diffuseColor.rgb = mix(diffuseColor.rgb * vec3(0.55, 0.5, 0.48), diffuseColor.rgb, smoothstep(0.22, 0.78, slope));
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.02, 0.92), smoothstep(0.55, 0.95, grain) * 0.35);`)
+diffuseColor.rgb *= 0.7 + grain * 0.45;
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.36, 0.24, 0.14), (1.0 - slope) * 0.55);
+diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.78, 0.68, 0.42), smoothstep(0.72, 1.0, slope) * grain * 0.4);
+diffuseColor.rgb = mix(vec3(0.42, 0.36, 0.22), diffuseColor.rgb, 0.55 + grain * 0.45);`)
   }
 }
 
@@ -706,26 +732,35 @@ function buildSurveyor() {
   const bootR = new THREE.Mesh(bootGeo, dark)
   bootR.position.set(0.12, 0.12, 0.04)
   const scarf = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 0.36, 0.03),
-    new THREE.MeshStandardMaterial({ color: '#e85d4c', roughness: 0.55, side: THREE.DoubleSide }),
+    new THREE.BoxGeometry(0.28, 0.62, 0.04),
+    new THREE.MeshStandardMaterial({ color: '#e85d4c', roughness: 0.5, side: THREE.DoubleSide }),
   )
   scarf.name = 'scarf'
-  scarf.position.set(0.02, 1.28, -0.18)
-  scarf.geometry.translate(0, -0.16, 0)
+  scarf.geometry.translate(0, -0.28, 0)
+  scarf.position.set(-0.22, 1.42, -0.08)
+  scarf.rotation.z = 0.55
+  const brim = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.035, 6, 14), dark)
+  brim.rotation.x = Math.PI / 2
+  brim.position.y = 1.4
+  const armGeo = new THREE.CapsuleGeometry(0.07, 0.46, 3, 6)
+  const armL = new THREE.Mesh(armGeo, suit)
+  armL.position.set(-0.4, 0.92, 0.02)
+  armL.rotation.z = 0.18
+  const armR = new THREE.Mesh(armGeo, suit)
+  armR.position.set(0.4, 0.92, 0.02)
+  armR.rotation.z = -0.18
   const shade = new THREE.Mesh(
-    new THREE.CircleGeometry(0.42, 12),
-    new THREE.MeshBasicMaterial({ color: '#12080c', transparent: true, opacity: 0.35, depthWrite: false }),
+    new THREE.CircleGeometry(0.48, 14),
+    new THREE.MeshBasicMaterial({ color: '#12080c', transparent: true, opacity: 0.45, depthWrite: false }),
   )
   shade.rotation.x = -Math.PI / 2
   shade.position.y = 0.03
-  const pauldronGeo = new THREE.SphereGeometry(0.12, 8, 6)
+  const pauldronGeo = new THREE.BoxGeometry(0.22, 0.12, 0.2)
   const pauldronL = new THREE.Mesh(pauldronGeo, cloth)
-  pauldronL.scale.set(1.3, 0.7, 1)
-  pauldronL.position.set(-0.32, 1.22, 0.02)
+  pauldronL.position.set(-0.32, 1.28, 0.02)
   const pauldronR = pauldronL.clone()
   pauldronR.position.x = 0.32
-  group.scale.setScalar(1.12)
-  group.add(torso, chest, helm, visor, pack, tankL, tankR, lamp, legL, legR, bootL, bootR, scarf, shade, pauldronL, pauldronR)
+  group.add(torso, chest, helm, visor, brim, pack, tankL, tankR, lamp, legL, legR, bootL, bootR, scarf, shade, pauldronL, pauldronR, armL, armR)
   return group
 }
 

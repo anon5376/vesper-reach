@@ -54,7 +54,7 @@ export class SpaceView {
     this.bodies = new THREE.Group()
     this.root.add(this.bodies)
     this.ship = new THREE.Group()
-    this.ship.scale.setScalar(2.25)
+    this.ship.scale.setScalar(1.65)
     this.root.add(this.ship)
     this.actors = new THREE.Group()
     this.root.add(this.actors)
@@ -77,7 +77,23 @@ export class SpaceView {
     deck.position.y = -2.42
     const grid = new THREE.GridHelper(18, 18, 0x8d5a48, 0x243430)
     grid.position.y = -2.4
-    this.editor.add(deck, grid)
+    const gridMats = Array.isArray(grid.material) ? grid.material : [grid.material]
+    for (const mat of gridMats) {
+      mat.transparent = true
+      mat.opacity = 0.18
+    }
+    const bay = new THREE.Mesh(
+      new THREE.CylinderGeometry(11.5, 12.2, 3.4, 28, 1, true),
+      new THREE.MeshStandardMaterial({ color: '#1c2a30', side: THREE.DoubleSide, roughness: 0.82, metalness: 0.18 }),
+    )
+    bay.position.y = -0.7
+    const lip = new THREE.Mesh(
+      new THREE.TorusGeometry(11.6, 0.18, 8, 28),
+      new THREE.MeshStandardMaterial({ color: '#c4b49a', roughness: 0.55, metalness: 0.2 }),
+    )
+    lip.rotation.x = Math.PI / 2
+    lip.position.y = 0.95
+    this.editor.add(deck, grid, bay, lip)
     this.station = buildStation()
     scene.add(this.station)
     this.demo = generateSystem(0x51a7e, 2)
@@ -114,10 +130,10 @@ export class SpaceView {
       setThrustVisual(this.editorShip, 0.2 + Math.sin(this.orbit * 3) * 0.05)
       const cursor = runtime?.editor?.cursor || { x: 0, y: 0, z: 0 }
       this.cursor.position.set(cursor.x, cursor.y, cursor.z)
-      const radius = 6.4
+      const radius = 9.5
       const theta = this.orbit * 0.25
-      camera.position.set(Math.sin(theta) * radius, 2.35, Math.cos(theta) * radius)
-      camera.lookAt(0, 0.15, 0)
+      camera.position.set(Math.sin(theta) * radius + 3.4, 2.8, Math.cos(theta) * radius)
+      camera.lookAt(1.4, 0.05, 0)
       this.sky.position.copy(camera.position)
       return
     }
@@ -186,7 +202,7 @@ export class SpaceView {
           roughness: 0.62,
           metalness: 0.08,
           emissive: biome.low,
-          emissiveIntensity: 0.22,
+          emissiveIntensity: 0.05,
         }),
       )
       body.userData.dispose = true
@@ -202,7 +218,7 @@ export class SpaceView {
       )
       clouds.userData.cloud = true
       const atmos = new THREE.Mesh(
-        new THREE.SphereGeometry(planet.radius * 1.16, 28, 20),
+        new THREE.SphereGeometry(planet.radius * 1.045, 28, 20),
         atmosphereMaterial(biome.sky),
       )
       group.add(body, clouds, atmos)
@@ -282,8 +298,8 @@ export class SpaceView {
     const forward = this._fwd.set(0, 0, -1).applyEuler(this._euler)
     const up = this._up.set(0, 1, 0).applyEuler(this._euler)
     const speed = Math.hypot(state.space.velocity.x, state.space.velocity.y, state.space.velocity.z)
-    const back = 6.4 + Math.min(3.5, speed * 0.04)
-    const lift = 1.7 + Math.min(0.8, speed * 0.015)
+    const back = 16 + Math.min(4, speed * 0.05)
+    const lift = 4.2 + Math.min(1.2, speed * 0.02)
     camera.position.set(
       pos.x - forward.x * back + up.x * lift,
       pos.y - forward.y * back + up.y * lift,
@@ -345,6 +361,21 @@ export class SpaceView {
   }
 }
 
+function starDot() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 32
+  canvas.height = 32
+  const g = canvas.getContext('2d')
+  const grd = g.createRadialGradient(16, 16, 0, 16, 16, 16)
+  grd.addColorStop(0, 'rgba(255,255,255,1)')
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.7)')
+  grd.addColorStop(1, 'rgba(255,255,255,0)')
+  g.fillStyle = grd
+  g.fillRect(0, 0, 32, 32)
+  const tex = new THREE.CanvasTexture(canvas)
+  return tex
+}
+
 function buildStars(count) {
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
@@ -368,12 +399,14 @@ function buildStars(count) {
   geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
   const stars = new THREE.Points(geo, new THREE.PointsMaterial({
-    size: 1.7,
+    map: starDot(),
+    size: 1.35,
     sizeAttenuation: false,
     vertexColors: true,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.85,
     depthWrite: false,
+    alphaMap: starDot(),
   }))
   stars.frustumCulled = false
   return stars

@@ -82,9 +82,11 @@ function meshFor(part) {
     if (part.x < 0) group.scale.x = -1
   } else if (id === 'thruster-main' || id === 'thruster-maneuver') {
     const scale = id === 'thruster-main' ? 1 : 0.62
-    const body = add(cyl(0.32 * scale, 0.78 * scale, 10), paint('#2a211c'), 0, 0, 0.05, Math.PI / 2)
+    add(rb(0.72 * scale, 0.72 * scale, 0.28 * scale, 0.06), paint(color, { rough: 0.45, metal: 0.25 }), 0, 0, -0.28)
+    const body = add(cyl(0.28 * scale, 0.7 * scale, 12), paint('#2a211c'), 0, 0, 0.18, Math.PI / 2)
     body.userData.thrust = true
-    add(geo(`ring${scale}`, () => new THREE.TorusGeometry(0.34 * scale, 0.045, 6, 12)), paint('#e85d4c', { emissive: '#ff6b4a', glow: 0.7 }), 0, 0, 0.42)
+    add(geo(`bell${scale}`, () => new THREE.ConeGeometry(0.34 * scale, 0.42 * scale, 12, 1, true)), paint('#1a120e', { rough: 0.4 }), 0, 0, 0.55, -Math.PI / 2)
+    add(geo(`ring${scale}`, () => new THREE.TorusGeometry(0.3 * scale, 0.045, 8, 16)), paint('#e85d4c', { emissive: '#ff6b4a', glow: 0.45 }), 0, 0, 0.36)
     const flame = add(cyl(0.16 * scale, 0.55), paint('#ffb703', { emissive: '#ff6b3d', glow: 0.4 }), 0, 0, 0.72)
     flame.rotation.x = Math.PI / 2
     flame.userData.flame = true
@@ -95,9 +97,11 @@ function meshFor(part) {
     sprite.userData.flame = true
     group.add(sprite)
   } else if (id === 'fuel-tank') {
-    add(cyl(0.34, 1.05, 14), paint(color, { metal: 0.35, rough: 0.35 }))
-    add(cyl(0.4, 0.07, 14), paint('#f3e6c8'), 0, 0.32, 0)
-    add(cyl(0.4, 0.07, 14), paint('#e85d4c'), 0, -0.18, 0)
+    add(cyl(0.32, 0.92, 14), paint(color, { metal: 0.28, rough: 0.4 }))
+    add(box(0.7, 0.08, 0.16), paint('#24170f'), 0, -0.42, 0)
+    add(box(0.12, 0.16, 0.5), paint('#24170f'), -0.28, -0.22, 0)
+    add(box(0.12, 0.16, 0.5), paint('#24170f'), 0.28, -0.22, 0)
+    add(cyl(0.36, 0.06, 14), paint('#e85d4c'), 0, 0.1, 0)
   } else if (id === 'cargo-bay') {
     add(rb(0.96, 0.58, 1.05, 0.08), paint(color))
     add(box(0.5, 0.06, 0.7), paint('#24170f'), 0, 0.3, 0)
@@ -185,13 +189,13 @@ function wingGeometry() {
     shape.lineTo(-1.02, -0.4)
     shape.closePath()
     const wing = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.055,
+      depth: 0.16,
       bevelEnabled: true,
-      bevelThickness: 0.012,
-      bevelSize: 0.012,
+      bevelThickness: 0.03,
+      bevelSize: 0.02,
       bevelSegments: 1,
     })
-    wing.translate(0, 0, -0.028)
+    wing.translate(0, 0, -0.08)
     wing.rotateX(Math.PI / 2)
     return wing
   })

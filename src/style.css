@@ -78,11 +78,11 @@ h2 { font-weight: 500; font-style: italic; margin: 0.2rem 0 0.6rem; }
 .top { display: flex; justify-content: space-between; padding: 0.8rem 1rem; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.75rem; }
 .brand { font-style: italic; letter-spacing: 0.14em; font-size: 1rem; text-transform: none; }
 #meters {
-  position: absolute; left: 1rem; bottom: 4.4rem; width: min(220px, 34vw);
-  display: grid; gap: 0.16rem; padding: 0.45rem 0.65rem 0.55rem;
-  background: linear-gradient(180deg, rgba(16, 10, 12, 0.62), rgba(16, 10, 12, 0.28));
-  border: 1px solid rgba(243, 230, 207, 0.32);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  position: absolute; left: 1rem; bottom: 4.4rem; width: min(168px, 28vw);
+  display: grid; gap: 0.12rem; padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 #meters::before {
   content: "Suit";
@@ -102,23 +102,18 @@ h2 { font-weight: 500; font-style: italic; margin: 0.2rem 0 0.6rem; }
 #compass-bar { position: relative; height: 100%; }
 #compass-bar i { position: absolute; top: 0; transform: translateX(-50%); font-style: normal; font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
 #xhair {
-  position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
-  transform: translate(-50%, -50%); border: none; border-radius: 0;
-  box-shadow:
-    -11px 0 0 -2px rgba(243,230,207,0.9),
-    11px 0 0 -2px rgba(243,230,207,0.9),
-    0 -11px 0 -2px rgba(243,230,207,0.9),
-    0 11px 0 -2px rgba(243,230,207,0.9);
+  position: absolute; left: 50%; top: 50%; width: 16px; height: 16px;
+  transform: translate(-50%, -50%); border: none; background: transparent; box-shadow: none;
 }
-#xhair:before, #xhair:after { content: ""; position: absolute; background: rgba(243,230,207,0.95); }
-#xhair:before { left: 2px; top: 2px; width: 2px; height: 2px; border-radius: 50%; }
-#xhair:after { display: none; }
+#xhair:before, #xhair:after { content: ""; position: absolute; background: rgba(243,230,207,0.92); display: block; }
+#xhair:before { left: 7px; top: 0; width: 2px; height: 16px; }
+#xhair:after { left: 0; top: 7px; width: 16px; height: 2px; }
 #prompt { position: absolute; left: 50%; bottom: 5.6rem; transform: translateX(-50%); font-size: 0.95rem; letter-spacing: 0.02em; }
 #feed { position: absolute; right: 1rem; top: 4rem; width: min(280px, 36vw); font-size: 0.86rem; }
-#feed p { margin: 0.2rem 0; background: rgba(18,10,14,0.35); padding: 0.2rem 0.4rem; }
+#feed p { margin: 0.15rem 0; background: none; padding: 0; font-style: italic; opacity: 0.82; }
 #hot { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%); display: flex; gap: 0.35rem; align-items: end; }
-#hot span, #hot em { border: 1px solid rgba(243,230,207,0.4); padding: 0.25rem 0.4rem; min-width: 4.2rem; font-size: 0.72rem; }
-#hot span.on { background: rgba(232,93,76,0.85); }
+#hot span, #hot em { border: 1px solid rgba(243,230,207,0.35); padding: 0.25rem 0.4rem; min-width: 4.2rem; font-size: 0.72rem; background: rgba(12, 16, 18, 0.28); }
+#hot span.on { background: rgba(12, 16, 18, 0.28); border-color: #e85d4c; box-shadow: inset 0 -2px 0 #e85d4c; }
 #hot b { display: block; font-size: 0.65rem; opacity: 0.7; }
 #target { position: absolute; top: 46%; left: 50%; transform: translateX(-50%); font-size: 0.8rem; letter-spacing: 0.06em; }
 #wheel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -40%); display: flex; gap: 0.4rem; }

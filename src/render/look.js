@@ -105,8 +105,8 @@ export function atmosphereMaterial(color) {
       varying vec3 vWorld;
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorld);
-        float rim = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 2.2);
-        gl_FragColor = vec4(uColor, rim * 1.15);
+        float rim = pow(1.0 - abs(dot(normalize(vNormal), viewDir)), 3.4);
+        gl_FragColor = vec4(uColor, rim * 0.42);
       }
     `,
   })
@@ -142,14 +142,14 @@ export function createWaterMaterial() {
       varying vec3 vWorld;
       varying vec3 vNormal;
       void main() {
-        float wave = sin(vWorld.x * 0.42 + uTime * 1.3) * sin(vWorld.z * 0.31 - uTime);
-        float rip = sin(vWorld.x * 1.7 + vWorld.z * 1.3 + uTime * 2.0);
-        vec3 normal = normalize(vNormal + vec3(wave * 0.18, 0.0, rip * 0.08));
+        float wave = sin(vWorld.x * 0.17 + uTime * 0.6) * sin(vWorld.z * 0.13 - uTime * 0.4);
+        float rip = sin(vWorld.x * 0.83 + vWorld.z * 0.61 + uTime);
+        vec3 normal = normalize(vNormal + vec3(wave * 0.08, 0.0, rip * 0.05));
         vec3 viewDir = normalize(uCam - vWorld);
-        float fres = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.1);
-        vec3 col = mix(uDeep, uColor, 0.55 + wave * 0.2);
-        col = mix(col, uFoam, smoothstep(0.72, 1.0, fres) * 0.55);
-        col += vec3(1.0, 0.78, 0.55) * fres * 0.28;
+        float fres = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.4);
+        vec3 col = mix(uDeep, uColor, 0.42 + wave * 0.08);
+        col = mix(col, uFoam, smoothstep(0.82, 1.0, fres) * 0.28);
+        col += vec3(0.85, 0.75, 0.55) * fres * 0.12;
         float dist = length(uCam - vWorld);
         float fade = smoothstep(50.0, 160.0, dist);
         float alpha = mix(0.5 + fres * 0.35, 0.12, fade);

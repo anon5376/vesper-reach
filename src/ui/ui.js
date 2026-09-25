@@ -88,7 +88,7 @@ export function createUI(ctx) {
     const state = ctx.session.state
     const runtime = ctx.session.runtime
     const play = state && !['TITLE', 'MODE_SELECT'].includes(mode)
-    hud.hidden = !play
+    hud.hidden = !play || mode === 'SHIP_EDITOR'
     if (play) paintHud(state, runtime, mode)
     const next = screenKey(mode, state, runtime)
     if (next !== stamp) {
