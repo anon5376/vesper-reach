@@ -47,20 +47,41 @@ export function removeItem(state, id, count = 1) {
   return left === 0
 }
 
+export function costMult(state) {
+  if (state.params.unlimited || state.params.instantBuild) return 0
+  const mult = state.params.craftingCost
+  if (mult == null) return 1
+  return mult
+}
+
+export function scaledCount(state, count) {
+  const mult = costMult(state)
+  if (mult <= 0) return 0
+  return Math.max(1, Math.ceil(count * mult))
+}
+
 export function canAfford(state, inputs) {
-  if (state.params.unlimited || state.params.instantBuild) return true
-  const mult = state.params.craftingCost || 1
-  return inputs.every((input) => countItem(state, input.id) >= Math.max(1, Math.ceil(input.count * (mult || 1))))
+  const mult = costMult(state)
+  if (mult <= 0) return true
+  return inputs.every((input) => countItem(state, input.id) >= scaledCount(state, input.count))
 }
 
 export function pay(state, inputs) {
-  if (state.params.unlimited || state.params.instantBuild) return true
   if (!canAfford(state, inputs)) return false
-  const mult = state.params.craftingCost || 1
-  for (const input of inputs) {
-    removeItem(state, input.id, Math.max(1, Math.ceil(input.count * (mult || 1))))
-  }
+  if (costMult(state) <= 0) return true
+  for (const input of inputs) removeItem(state, input.id, scaledCount(state, input.count))
   return true
+}
+
+export function freeSpaceFor(state, id, count) {
+  const max = ITEMS[id]?.stack || 20
+  let room = 0
+  for (const slot of state.inventory.slots) {
+    if (!slot) room += max
+    else if (slot.id === id && slot.count < max) room += max - slot.count
+    if (room >= count) return true
+  }
+  return room >= count
 }
 
 export function moveSlot(state, from, to) {

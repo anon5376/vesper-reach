@@ -1,7 +1,7 @@
 import { ITEMS } from '../data/items.js'
 import { RECIPE_LIST } from '../data/recipes.js'
 import { findPieceNear } from '../base/query.js'
-import { addItem, canAfford, pay } from '../inventory/inventory.js'
+import { addItem, canAfford, pay, freeSpaceFor } from '../inventory/inventory.js'
 
 export function knownRecipes(state) {
   const unlocked = new Set(state.unlockedTech)
@@ -17,6 +17,11 @@ export function canCraft(state, recipe) {
     return { ok: false, error: `Needs a ${recipe.station} nearby.` }
   }
   if (!canAfford(state, recipe.inputs)) return { ok: false, error: 'Short on materials.' }
+  if (recipe.time <= 0 || (recipe.station !== 'refiner' && recipe.station !== 'purifier')) {
+    if (!freeSpaceFor(state, recipe.output.id, recipe.output.count)) {
+      return { ok: false, error: 'Pockets full. The work had nowhere to land.' }
+    }
+  }
   return { ok: true }
 }
 
@@ -34,10 +39,7 @@ export function craftRecipe(state, recipeId) {
   }
   if (!pay(state, recipe.inputs)) return { ok: false, error: 'Short on materials.' }
   const left = addItem(state, recipe.output.id, recipe.output.count)
-  if (left > 0) {
-    addItem(state, recipe.output.id, 0)
-    return { ok: false, error: 'Pockets full. The work had nowhere to land.' }
-  }
+  if (left > 0) return { ok: false, error: 'Pockets full. The work had nowhere to land.' }
   state.stats.crafted = (state.stats.crafted || 0) + 1
   return { ok: true, name: ITEMS[recipe.output.id]?.name || recipe.output.id }
 }
